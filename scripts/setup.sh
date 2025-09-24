@@ -63,8 +63,9 @@ setup_geocalib_repository() {
         $auto_magic_image bash -c "
             echo 'Setting up GeoCalib repository inside container...'
             
-            # Install git, wget, and tar if not present
-            apt update -y && apt install -y git wget tar
+            # Install git, wget, tar, and minimal OpenCV runtime deps needed at runtime
+            # This keeps Dockerfile unchanged but ensures the committed image contains the libs
+            apt update -y && apt install -y git wget tar libgl1 libglib2.0-0 || true
             
             # Create submodules and models directories
             mkdir -p /auto-magic-calib/submodules

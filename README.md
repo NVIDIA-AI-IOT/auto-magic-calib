@@ -136,7 +136,7 @@ Also verify docker images are available:
 ```bash
 docker images 
 # Should show:
-# nvcr.io/nvidia/auto-magic-calib                                        1.0
+# nvcr.io/nvidia/auto-magic-calib:1.0                                    1.0
 # gitlab-master.nvidia.com:5005/deepstreamsdk/release_image/deepstream   8.0.0-triton-25.09.1-ma
 ```
 
@@ -188,16 +188,22 @@ Use when you have ground truth data and layout map for comprehensive evaluation.
 > bash launch_EndToEndCalib.sh -v <video_dir> -o <output_base_dir> -g <groundtruth_dir> -l <layout_image_path> -f <focal_lengths>
 > ```
 > 
+> The provided data includes pre-calibrated alignment transform (`alignment_data.json`), so manual alignment GUI won't pop up.
+> To try out your own [Manual Alignment](#manual-alignment), remove the json file before running the `launch_EndToEndCalib` command below.
+> ```bash
+> rm ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/manual_adjustment/alignment_data.json
+> ```
+>
 > **Sample Command:**
 > ```bash
 > cd auto-magic-calib/scripts
 > bash launch_EndToEndCalib.sh -v ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -g ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -l ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/manual_adjustment/layout.png -f "1269.01, 1099.50, 1099.50, 1099.50"
 > ```
-> 
+>
 > **Pipeline Steps:**
 > 1. **Single-View Calibration** → Individual camera calibration
 > 2. **Multi-View Calibration** → Bundle adjustment and global optimization across cameras
-> 3. **Manual Alignment** → Layout alignment. Interactive GPU pops up only if `alignment_data.json` doesn’t exist under the specified -l <layout_image_path>.
+> 3. **Manual Alignment** → Layout alignment. Interactive GUI pops up only if `alignment_data.json` doesn’t exist under the specified -l <layout_image_path>.
 > 4. **Evaluation and Visualization** → Accuracy metrics against ground truth. Trajectories overlay image onto BirdEyeView map.
 > 
 > **Key Output Files:**
@@ -210,8 +216,6 @@ Use when you have ground truth data and layout map for comprehensive evaluation.
 > **Why Manual Alignment?**
 >
 > Even when ground truth data is provided, manual alignment is still required because the ground truth coordinate system and the layout map coordinate system are different. The layout image is a 2D representation, and the transform calculated during manual alignment establishes a custom mapping between the estimated camera coordinate system (with cam_00 as reference) and the 2D layout map. This transform is essential for visualization and also some downstream applications (such as MV3DT) that need to relate camera views to the layout.
->
-> *Note: The provided sample data already includes pre-calibrated alignment data (`alignment_data.json`), so manual alignment isn't necessary for the sample data. For more information about how to run the manual alignment with your own data, see [Manual Alignment](#manual-alignment).*
 >
 > You can verify calibration output in [Output Files](#output-files).
 >
