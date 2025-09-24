@@ -91,28 +91,28 @@ setup_geocalib_repository() {
             local model_url='https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar'
             local temp_model_file='/tmp/geocalib-pinhole.tar'
             
-            if [ ! -d "\$model_dir" ] || [ -z "\$(ls -A \$model_dir 2>/dev/null)" ]; then
-                echo 'Downloading GeoCalib model from \$model_url...'
-                if wget -O "\$temp_model_file" "\$model_url"
+            if [ ! -d "$model_dir" ] || [ -z "$(ls -A $model_dir 2>/dev/null)" ]; then
+                echo "Downloading GeoCalib model from $model_url..."
+                if wget -O "$temp_model_file" "$model_url"
                 then
                     echo 'Successfully downloaded GeoCalib model'
-                    echo 'Extracting model to \$model_dir...'
-                    mkdir -p "\$model_dir"
-                    if tar -xf "\$temp_model_file" -C "\$model_dir" --strip-components=1
+                    echo "Extracting model to $model_dir..."
+                    mkdir -p "$model_dir"
+                    if tar -xf "$temp_model_file" -C "$model_dir" --strip-components=1
                     then
                         echo 'Successfully extracted GeoCalib model'
-                        rm -f "\$temp_model_file"
+                        rm -f "$temp_model_file"
                     else
                         echo 'Failed to extract GeoCalib model'
-                        rm -f "\$temp_model_file"
+                        rm -f "$temp_model_file"
                         exit 1
                     fi
                 else
-                    echo 'Failed to download GeoCalib model from \$model_url'
+                    echo "Failed to download GeoCalib model from $model_url"
                     exit 1
                 fi
             else
-                echo 'GeoCalib model already exists at \$model_dir'
+                echo "GeoCalib model already exists at $model_dir"
             fi
             
             echo 'GeoCalib setup completed inside container'
