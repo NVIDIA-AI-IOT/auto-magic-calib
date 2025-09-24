@@ -92,9 +92,9 @@ setup_geocalib_repository() {
             fi
             
             # Download GeoCalib model tar only (no extraction)
-            local model_dir='/auto-magic-calib/models/geocalib'
-            local model_url='https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar'
-            local model_tar="$model_dir/geocalib-pinhole.tar"
+            model_dir='/auto-magic-calib/models/geocalib'
+            model_url='https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar'
+            model_tar="$model_dir/geocalib-pinhole.tar"
             
             mkdir -p "$model_dir"
             if [ ! -f "$model_tar" ]; then
@@ -114,12 +114,13 @@ setup_geocalib_repository() {
             sleep 2
         "
     
-    # Wait for the setup to complete
+    # Wait for the setup to complete and capture the container exit code
     echo "Waiting for GeoCalib setup to complete..."
-    docker wait $container_name
+    setup_exit_code=$(docker wait $container_name)
+    echo "$setup_exit_code"
     
-    # Check if the setup was successful
-    if [ $? -eq 0 ]; then
+    # Check if the setup was successful based on the container's exit code
+    if [ "$setup_exit_code" -eq 0 ]; then
         echo "✓ GeoCalib repository successfully set up inside container"
         
         # Commit the container with GeoCalib to create updated image
@@ -136,11 +137,11 @@ setup_geocalib_repository() {
             echo "⚠ Warning: Failed to commit container image"
         fi
     else
-        echo "⚠ Warning: Failed to set up GeoCalib repository inside container"
+        echo "⚠ Warning: Failed to set up GeoCalib repository inside container (exit code: $setup_exit_code)"
         echo "Please ensure:"
-        echo "  1. SSH agent is running: eval \$(ssh-agent) && ssh-add"
-        echo "  2. SSH key has access to github.com:cvg/GeoCalib.git"
-        echo "  3. auto-magic-calib:latest container image is available"
+        echo "  1. Internet connectivity from within the container"
+        echo "  2. GitHub access to https://github.com/cvg/GeoCalib"
+        echo "  3. The model URL is reachable: https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar"
     fi
     
     # Clean up the temporary container
