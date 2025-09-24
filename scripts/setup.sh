@@ -91,33 +91,22 @@ setup_geocalib_repository() {
                 echo 'GeoCalib geocalib already exists at $container_geocalib_dir/geocalib'
             fi
             
-            # Download and extract GeoCalib model
+            # Download GeoCalib model tar only (no extraction)
             local model_dir='/auto-magic-calib/models/geocalib'
             local model_url='https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar'
-            local temp_model_file='/tmp/geocalib-pinhole.tar'
+            local model_tar="$model_dir/geocalib-pinhole.tar"
             
-            if [ ! -d "$model_dir" ] || [ -z "$(ls -A $model_dir 2>/dev/null)" ]; then
-                echo "Downloading GeoCalib model from $model_url..."
-                if wget -O "$temp_model_file" "$model_url"
-                then
-                    echo 'Successfully downloaded GeoCalib model'
-                    echo "Extracting model to $model_dir..."
-                    mkdir -p "$model_dir"
-                    if tar -xf "$temp_model_file" -C "$model_dir" --strip-components=1
-                    then
-                        echo 'Successfully extracted GeoCalib model'
-                        rm -f "$temp_model_file"
-                    else
-                        echo 'Failed to extract GeoCalib model'
-                        rm -f "$temp_model_file"
-                        exit 1
-                    fi
+            mkdir -p "$model_dir"
+            if [ ! -f "$model_tar" ]; then
+                echo "Downloading GeoCalib model tar to $model_tar..."
+                if wget -O "$model_tar" "$model_url"; then
+                    echo "✓ GeoCalib model tar downloaded"
                 else
                     echo "Failed to download GeoCalib model from $model_url"
                     exit 1
                 fi
             else
-                echo "GeoCalib model already exists at $model_dir"
+                echo "GeoCalib model tar already exists at $model_tar"
             fi
             
             echo 'GeoCalib setup completed inside container'
@@ -134,8 +123,12 @@ setup_geocalib_repository() {
         echo "✓ GeoCalib repository successfully set up inside container"
         
         # Commit the container with GeoCalib to create updated image
-        echo "Committing container with GeoCalib to auto-magic-calib:latest..."
-        docker commit $container_name $auto_magic_image
+        echo "Committing container with GeoCalib to auto-magic-calib:latest (restoring default CMD)..."
+        # Reset ENTRYPOINT and set default CMD to /bin/bash so interactive runs behave as before
+        docker commit \
+            --change 'ENTRYPOINT []' \
+            --change 'CMD ["/bin/bash"]' \
+            $container_name $auto_magic_image
         
         if [ $? -eq 0 ]; then
             echo "✓ Successfully committed updated container image with GeoCalib"
