@@ -60,8 +60,12 @@ setup_geocalib_repository() {
     # Start the container (without --rm so we can commit it)
     docker run -d --name $container_name --privileged --ipc=host --network host \
         --entrypoint="" \
-        $auto_magic_image bash -c "
-            echo 'Setting up GeoCalib repository inside container...'
+        $auto_magic_image bash -c '
+            echo "Setting up GeoCalib repository inside container..."
+            
+            # Define container variables inside the container
+            container_geocalib_temp="/tmp/GeoCalib"
+            container_geocalib_dir="/auto-magic-calib/submodules/GeoCalib"
             
             # Install git, wget, tar, and minimal OpenCV runtime deps needed at runtime
             # This keeps Dockerfile unchanged but ensures the committed image contains the libs
@@ -72,28 +76,28 @@ setup_geocalib_repository() {
             mkdir -p /auto-magic-calib/models
             
             # Clone GeoCalib repository and extract geocalib subdirectory
-            if [ ! -d '$container_geocalib_dir/geocalib' ]; then
-                echo 'Cloning GeoCalib repository...'
-                if git clone https://github.com/cvg/GeoCalib.git '$container_geocalib_temp'
+            if [ ! -d "$container_geocalib_dir/geocalib" ]; then
+                echo "Cloning GeoCalib repository..."
+                if git clone https://github.com/cvg/GeoCalib.git "$container_geocalib_temp"
                 then
-                    echo 'Successfully cloned GeoCalib repository'
-                    echo 'Extracting geocalib subdirectory to match original structure...'
-                    mkdir -p '$container_geocalib_dir'
-                    cp -r '$container_geocalib_temp/geocalib' '$container_geocalib_dir/'
-                    rm -rf '$container_geocalib_temp'
-                    echo 'GeoCalib geocalib subdirectory extracted to $container_geocalib_dir/geocalib'
+                    echo "Successfully cloned GeoCalib repository"
+                    echo "Extracting geocalib subdirectory to match original structure..."
+                    mkdir -p "$container_geocalib_dir"
+                    cp -r "$container_geocalib_temp/geocalib" "$container_geocalib_dir/"
+                    rm -rf "$container_geocalib_temp"
+                    echo "GeoCalib geocalib subdirectory extracted to $container_geocalib_dir/geocalib"
                 else
-                    echo 'Failed to clone GeoCalib repository from https://github.com/cvg/GeoCalib.git'
-                    echo 'Please check your internet connection and GitHub repository access'
+                    echo "Failed to clone GeoCalib repository from https://github.com/cvg/GeoCalib.git"
+                    echo "Please check your internet connection and GitHub repository access"
                     exit 1
                 fi
             else
-                echo 'GeoCalib geocalib already exists at $container_geocalib_dir/geocalib'
+                echo "GeoCalib geocalib already exists at $container_geocalib_dir/geocalib"
             fi
             
             # Download GeoCalib model tar only (no extraction)
-            model_dir='/auto-magic-calib/models/geocalib'
-            model_url='https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar'
+            model_dir="/auto-magic-calib/models/geocalib"
+            model_url="https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar"
             model_tar="$model_dir/geocalib-pinhole.tar"
             
             mkdir -p "$model_dir"
@@ -109,10 +113,10 @@ setup_geocalib_repository() {
                 echo "GeoCalib model tar already exists at $model_tar"
             fi
             
-            echo 'GeoCalib setup completed inside container'
+            echo "GeoCalib setup completed inside container"
             # Keep container running briefly for commit
             sleep 2
-        "
+        '
     
     # Wait for the setup to complete and capture the container exit code
     echo "Waiting for GeoCalib setup to complete..."
