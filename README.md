@@ -116,7 +116,7 @@ If the setup is successful, the sample directory structure should look like this
 │   └── resnet50_market1501_aicity156.onnx
 ├── ngc_download
 │   └── peoplenet_deployable_quantized.zip
-├── sample_data
+├── assets
 │   └── sdg_08_2_sample_data_091025.zip
 └── scripts
     ├── convert_det2kitti.sh
@@ -141,14 +141,14 @@ docker images
 ```
 
 ### Sample Data Setup
-Unzip the compressed sample data file under `auto-magic-calib/sample_data`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
+Unzip the compressed sample data file under `auto-magic-calib/assets`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
 1. Input video files
 2. Ground truth data
 3. BirdEyeView map image
 4. Pre-calibrated transform for BirdEyeView map
 
 ```
-~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025
+~/auto-magic-calib/assets/sdg_08_2_sample_data_091025
 ├── cam_00.mp4                  # Input video files
 ├── cam_01.mp4                  
 ├── cam_02.mp4                  
@@ -191,24 +191,22 @@ Use when you have ground truth data and layout map for comprehensive evaluation.
 > **Sample Command:**
 > ```bash
 > cd auto-magic-calib/scripts
-> bash launch_EndToEndCalib.sh -v ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025 -o ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/output -g ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025 -l ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/manual_adjustment/layout.png -f "1269.01, 1099.50, 1099.50, 1099.50"
+> bash launch_EndToEndCalib.sh -v ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -g ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -l ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/manual_adjustment/layout.png -f "1269.01, 1099.50, 1099.50, 1099.50"
 > ```
 > 
 > **Pipeline Steps:**
 > 1. **Single-View Calibration** → Individual camera calibration
 > 2. **Multi-View Calibration** → Bundle adjustment and global optimization across cameras
-> 3. **Manual Alignment** → Layout alignment. Interactive GUI pops up only if `alignment_data.json` doesn't exist.
+> 3. **Manual Alignment** → Layout alignment. Interactive GPU pops up only if `alignment_data.json` doesn’t exist under the specified -l <layout_image_path>.
 > 4. **Evaluation and Visualization** → Accuracy metrics against ground truth. Trajectories overlay image onto BirdEyeView map.
 > 
 > **Key Output Files:**
-> - Calibration results (`camInfo_*.yaml` files)
-> - 3D trajectory data (`trajDump_Stream_0_3d.txt`)
-> - Bundle adjustment results (`BA_output/results_ba/refined/`)
-> - Evaluation metrics and visualizations (`evaluation/`)
-> - Manual alignment data (`manual_adjustment/alignment_data.json`)
-> - Cam_00 to layout map transform data (`manual_adjustment/transform_cam0_to_map.json`)> 
+> - Final refined camera parameters (most important): `multi_view_results/BA_output/results_ba/refined/camInfo_XX.yaml` - Complete intrinsic and extrinsic parameters after bundle adjustment
+> - Single-view intrinsic parameters: `single_view_results/cam_XX/camInfo_hyper_XX.yaml` (original format)
+> - Single-view intrinsic parameters (OpenCV): `single_view_results/cam_XX/camInfo_hyper_XX_opencv.yaml` (principal points at center)
+> - Evaluation metrics and visualizations (`multi_view_results/evaluation/`)
 > - ... (for complete output details, see the [Output Files](#output-files) section)
-> 
+>
 > **Why Manual Alignment?**
 >
 > Even when ground truth data is provided, manual alignment is still required because the ground truth coordinate system and the layout map coordinate system are different. The layout image is a 2D representation, and the transform calculated during manual alignment establishes a custom mapping between the estimated camera coordinate system (with cam_00 as reference) and the 2D layout map. This transform is essential for visualization and also some downstream applications (such as MV3DT) that need to relate camera views to the layout.
@@ -218,6 +216,11 @@ Use when you have ground truth data and layout map for comprehensive evaluation.
 > You can verify calibration output in [Output Files](#output-files).
 >
 > Or, proceed to [Format Conversion for Downstream Applications: MV3DT Use Case](#format-conversion-for-downstream-applications-mv3dt-use-case) to see how AMC calibration can be used by downstream applications.
+
+### **Processing Time** ### 
+Total processing time varies based on hardware specifications, video resolution, file count, and scene complexity. For the provided sample data on an RTX6000 system, expect approximately:
+- **Single-view calibration**: ~10 minutes per camera (40 minutes total for 4 cameras)
+- **Multi-view calibration**: ~10 minutes for bundle adjustment and optimization
 
 ### **Use Case 2: Calibration without Ground Truth Data, with Qualitative Evaluation**
 Use when you have layout map for visualization.
@@ -229,7 +232,7 @@ Use when you have layout map for visualization.
 > **Sample Command:**
 > ```bash
 > cd auto-magic-calib/scripts
-> bash launch_EndToEndCalib.sh -v ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025 -o ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/output -f "1269.01, 1099.50, 1099.50, 1099.50"
+> bash launch_EndToEndCalib.sh -v ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -f "1269.01, 1099.50, 1099.50, 1099.50"
 > ```
 > 
 > **Pipeline Steps:**
@@ -249,12 +252,12 @@ Use when you have layout map for visualization.
 > 2. Run `launch_Visualization.sh` as follows
 > 
 > ```bash
-> bash launch_Visualization.sh -i ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/output/single_view_results -o ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/output -l ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/manual_adjustment/layout.png
+> bash launch_Visualization.sh -i ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output/single_view_results -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -l ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/manual_adjustment/layout.png
 > ```
 > 
 > Then the pair-wise trajectory overlay images are generated in same folder as `layout.png`.
 > ```
-> ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/output/multi_view_results/manual_adjustment/
+> ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output/multi_view_results/manual_adjustment/
 > ├── alignment_data.json
 > ├── layout.png
 > ├── overlay_img_00.png
@@ -265,11 +268,6 @@ Use when you have layout map for visualization.
 > You can verify calibration output (including visualization examples) in [Output Files](#output-files).
 >
 > Or, proceed to [Format Conversion for Downstream Applications: MV3DT Use Case](#format-conversion-for-downstream-applications-mv3dt-use-case) to see how AMC calibration can be used by downstream applications.
-
-### **Processing Time** ### 
-Total processing time varies based on hardware specifications, video resolution, file count, and scene complexity. For the provided sample data on an RTX6000 system, expect approximately:
-- **Single-view calibration**: ~10 minutes per camera (40 minutes total for 4 cameras)
-- **Multi-view calibration**: ~10 minutes for bundle adjustment and optimization
 
 ### **Command Line Arguments**
 
@@ -561,7 +559,7 @@ The following commands assume that you have followed the [Use Case 1: Calibratio
 # Usage:
 #   bash launch_ConvertToMv3dt.sh -i /path/to/AMC/output -o /path/to/output
 
-bash launch_ConvertToMv3dt.sh -i ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/output -o ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/mv3dt_output
+bash launch_ConvertToMv3dt.sh -i ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/mv3dt_output
 
 # expected CLI output:
 #   [done] Wrote camInfo/, map.png, transforms.yml to /auto-magic-calib/output
@@ -591,8 +589,8 @@ The output files from the conversion script is ready to be used in MV3DT. Please
   ```bash
   cd /path/to/deepstream_reference_apps/deepstream-tracker-3d-multi-view
   mkdir -p datasets/amc_dataset/videos
-  cp ~/auto-magic-calib/sample_data/sdg_08_2_sample_data_091025/*.mp4 datasets/amc_dataset/videos
-  cp -r ~/Downloads/mv3dt_output/* datasets/amc_dataset/
+  cp ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/*.mp4 datasets/amc_dataset/videos
+  cp -r ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/mv3dt_output/* datasets/amc_dataset/
   ```
 3. Prepare a MV3DT launch script for the new dataset
   ```bash
@@ -786,6 +784,9 @@ input_video_directory/
 └── cam_03.mp4
 ```
  
+## Input Video Contents:
+There must be objects moving around the scene, because AMC relies on tracking results.
+Cameras must be specified in order and have overlapping areas: `cam_00` overlaps with `cam_01`, and `cam_01` overlaps with `cam_02`, ...
 
 ### Input Video Resolution:
 Video files' resolution should be 1920x1080. 
