@@ -1,0 +1,16 @@
+general:
+  skip: True # skip rectification if True
+
+preprocess:
+  num_frames: 500 # number of frames to get background image 
+  frame_step: 30  # number of frames to skip 
+  resize_width: 960  # width of resized image
+  resize_height: 540 # height of resized image
+
+param_space:
+  k1_min: -0.000001  # minimum value of k1
+  k1_max: -0.0000001 # maximum value of k1
+  k1_step: 100       # number of values for grid search
+
+output:
+  crop: True

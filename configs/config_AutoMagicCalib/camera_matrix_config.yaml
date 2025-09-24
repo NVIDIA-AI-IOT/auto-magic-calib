@@ -1,0 +1,11 @@
+# parameter space: [minimum, maximum]
+focal_length: [2, 30]
+rotation_x: [-45, 0]
+rotation_z: [-15, 15]
+translation_y: [100, 1000]
+human_radius: [30, 35]
+
+# parameters 
+focal_length_init: 933.33 # initial focal length for vanishing point detection in pixel
+weight_iou: 0.5
+iterations: 10000  

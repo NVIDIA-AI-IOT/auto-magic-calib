@@ -1,0 +1,20 @@
+# ground truth directory is provided via -g argument to the script
+
+# anchors for the transformation cam0 to world ('layout' or 'apriltag' or 'gt_cam0')
+# 'gt_cam0': GT camera 0 is used to transfrom estimated camera parameters to the world coordinate system
+# 'layout': layout image is used to transfrom estimated camera parameters to the world coordinate system
+# 'apriltag': apriltag in images is used to transfrom estimated camera parameters to the world coordinate system
+# 
+# NOTE: if 'gt_cam0' is used, the layout_px_per_m is not used
+#       and the estimated camera parameters are transformed to the world coordinate system
+#       using the GT camera 0's projection matrix
+anchor: "layout"
+layout_px_per_m: 24.22 # this param is only used for layout anchor
+
+# minimum bounding box width and height
+min_bbox_w: 25
+min_bbox_h: 70
+
+# minimum boundary x and y
+min_boundary_x: 10
+min_boundary_y: 10

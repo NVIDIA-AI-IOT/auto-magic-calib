@@ -1,0 +1,24 @@
+root_path: "root_dummy"
+
+video:
+  path: "rectified.mp4"
+  bound_to_tracking_id: false
+
+config_path:
+  tracker_output: "trajDump_Stream_0_3d.txt"
+
+overlay:
+  show:
+    tracker_output_bbox: false
+    tracker_output_bbox_center: true
+    tracker_output_trajectory: true
+    tracker_output_convex_hull: true
+    use_foot_location: true
+    mdat_output: false
+    frame_nb: true
+  tracking:
+    type: "all"
+    id: 0
+  bbox_frame:
+    width: 1920
+    height: 1080

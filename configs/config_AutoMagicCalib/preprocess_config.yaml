@@ -1,0 +1,13 @@
+image:
+  width: 1920  # image width
+  height: 1080 # image height
+region_split:
+  width: 21    # width of grid
+  height: 11   # height of grid
+box_sampling:
+  confidence: 0.9             # confidence threshold for bounding box
+  aspect_ratio_residual: 0.25 # aspect ratio's residual threshold
+  width_residual: 50          # width's residual threshold
+  height_residual: 50         # height's residual threshold
+
+
