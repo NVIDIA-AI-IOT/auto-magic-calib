@@ -136,7 +136,7 @@ Also verify docker images are available:
 ```bash
 docker images 
 # Should show:
-# nvcr.io/nvidia/auto-magic-calib                                        0.2
+# nvcr.io/nvidia/auto-magic-calib                                        1.0
 # gitlab-master.nvidia.com:5005/deepstreamsdk/release_image/deepstream   8.0.0-triton-25.09.1-ma
 ```
 
