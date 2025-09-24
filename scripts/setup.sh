@@ -57,16 +57,13 @@ setup_geocalib_repository() {
     echo "Cloning GeoCalib repository inside container..."
     
     # Start the container (without --rm so we can commit it)
-    # Mount SSH agent socket and .ssh directory for GitHub access
     docker run -d --name $container_name --privileged --ipc=host --network host \
-        -v $SSH_AUTH_SOCK:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent \
-        -v $HOME/.ssh:/root/.ssh:ro \
         --entrypoint="" \
         $auto_magic_image bash -c "
             echo 'Setting up GeoCalib repository inside container...'
             
             # Install git, wget, and tar if not present
-            apt update -y && apt install -y git openssh-client wget tar
+            apt update -y && apt install -y git wget tar
             
             # Create submodules and models directories
             mkdir -p /auto-magic-calib/submodules
@@ -75,16 +72,12 @@ setup_geocalib_repository() {
             # Clone GeoCalib repository
             if [ ! -d '$container_geocalib_dir' ]; then
                 echo 'Cloning GeoCalib repository...'
-                if git clone git@github.com:cvg/GeoCalib.git '$container_geocalib_dir'
+                if git clone https://github.com/cvg/GeoCalib.git '$container_geocalib_dir'
                 then
                     echo 'Successfully cloned GeoCalib repository to $container_geocalib_dir'
                 else
-                    echo 'Failed to clone GeoCalib repository. Please ensure you have SSH access to github.com:cvg/GeoCalib.git'
-                    echo 'You may need to:'
-                    echo '  1. Set up SSH keys for GitHub'
-                    echo '  2. Add the SSH key to your GitHub account' 
-                    echo '  3. Verify SSH access with: ssh -T git@github.com'
-                    echo '  4. Ensure SSH agent is running: eval \$(ssh-agent) && ssh-add'
+                    echo 'Failed to clone GeoCalib repository from https://github.com/cvg/GeoCalib.git'
+                    echo 'Please check your internet connection and GitHub repository access'
                     exit 1
                 fi
             else
