@@ -87,18 +87,13 @@ Password: "YOUR_NGC_API_KEY"
 ### Scripts Setup
 Clone the repo to your local directory, then run the setup script to prepare required resources. Docker images will be pulled automatically.
 ```bash
-cd auto-magic-calib/scripts
+# clone the repo
+cd auto-magic-calib   # or auto-magic-calib-dev (if dev repo)
+git submodule update --init --recursive
+git lfs pull
+cd scripts
 bash setup.sh 
 ```
-
-**(For QA team) Use compressed zip/tar files: (This section will be deprecated when GitHub repo is ready)**
-Copy prepared files from the shared drive and extract them.
-```bash
-docker load -i auto-magic-calib-0.2.x.tar
-cd auto-magic-calib/scripts
-bash setup.sh
-```
-
 
 If the setup is successful, the sample directory structure should look like this:
 ```
@@ -160,7 +155,7 @@ docker images
 ```
 
 ### Sample Data Setup
-Unzip the compressed sample data file under `auto-magic-calib/scripts`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
+Unzip the compressed sample data file under `auto-magic-calib/sample_data`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
 1. Input video files
 2. Ground truth data
 3. BirdEyeView map image
