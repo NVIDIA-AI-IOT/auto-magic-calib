@@ -52,6 +52,7 @@ setup_geocalib_repository() {
     # Get the auto-magic-calib container image name
     local auto_magic_image="auto-magic-calib:latest"
     local container_name="auto-magic-calib-geocalib-setup"
+    local container_geocalib_temp="/tmp/GeoCalib"
     local container_geocalib_dir="/auto-magic-calib/submodules/GeoCalib"
     
     echo "Cloning GeoCalib repository inside container..."
@@ -69,21 +70,24 @@ setup_geocalib_repository() {
             mkdir -p /auto-magic-calib/submodules
             mkdir -p /auto-magic-calib/models
             
-            # Clone GeoCalib repository
-            if [ ! -d '$container_geocalib_dir' ]; then
+            # Clone GeoCalib repository and extract geocalib subdirectory
+            if [ ! -d '$container_geocalib_dir/geocalib' ]; then
                 echo 'Cloning GeoCalib repository...'
-                if git clone https://github.com/cvg/GeoCalib.git '$container_geocalib_dir'
+                if git clone https://github.com/cvg/GeoCalib.git '$container_geocalib_temp'
                 then
-                    echo 'Successfully cloned GeoCalib repository to $container_geocalib_dir'
+                    echo 'Successfully cloned GeoCalib repository'
+                    echo 'Extracting geocalib subdirectory to match original structure...'
+                    mkdir -p '$container_geocalib_dir'
+                    cp -r '$container_geocalib_temp/geocalib' '$container_geocalib_dir/'
+                    rm -rf '$container_geocalib_temp'
+                    echo 'GeoCalib geocalib subdirectory extracted to $container_geocalib_dir/geocalib'
                 else
                     echo 'Failed to clone GeoCalib repository from https://github.com/cvg/GeoCalib.git'
                     echo 'Please check your internet connection and GitHub repository access'
                     exit 1
                 fi
             else
-                echo 'GeoCalib repository already exists at $container_geocalib_dir'
-                echo 'Pulling latest changes...'
-                cd '$container_geocalib_dir' && git pull origin main
+                echo 'GeoCalib geocalib already exists at $container_geocalib_dir/geocalib'
             fi
             
             # Download and extract GeoCalib model
