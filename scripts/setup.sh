@@ -11,7 +11,7 @@
 
 setup_auto_magic_calib_container() {
     # Define the source image to make it easier to read and modify
-    local source_image="nvcr.io/nvdeepstream/deepstream-tools/auto-magic-calib:0.2"
+    local source_image="nvcr.io/nvdeepstream/deepstream-tools/auto-magic-calib:1.0"
 
     # Define the local tag your script needs
     local local_tag="auto-magic-calib:latest"
@@ -46,11 +46,125 @@ setup_deepstream_container() {
 DEEPSTREAM_IMAGE="gitlab-master.nvidia.com:5005/deepstreamsdk/release_image/deepstream:8.0.0-triton-25.09.1-ma"
 
 
+setup_geocalib_repository() {
+    echo "Setting up GeoCalib repository inside auto-magic-calib container..."
+    
+    # Get the auto-magic-calib container image name
+    local auto_magic_image="auto-magic-calib:latest"
+    local container_name="auto-magic-calib-geocalib-setup"
+    local container_geocalib_dir="/auto-magic-calib/submodules/GeoCalib"
+    
+    echo "Cloning GeoCalib repository inside container..."
+    
+    # Start the container (without --rm so we can commit it)
+    # Mount SSH agent socket and .ssh directory for GitHub access
+    docker run -d --name $container_name --privileged --ipc=host --network host \
+        -v $SSH_AUTH_SOCK:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent \
+        -v $HOME/.ssh:/root/.ssh:ro \
+        --entrypoint="" \
+        $auto_magic_image bash -c "
+            echo 'Setting up GeoCalib repository inside container...'
+            
+            # Install git, wget, and tar if not present
+            apt update -y && apt install -y git openssh-client wget tar
+            
+            # Create submodules and models directories
+            mkdir -p /auto-magic-calib/submodules
+            mkdir -p /auto-magic-calib/models
+            
+            # Clone GeoCalib repository
+            if [ ! -d '$container_geocalib_dir' ]; then
+                echo 'Cloning GeoCalib repository...'
+                if git clone git@github.com:cvg/GeoCalib.git '$container_geocalib_dir'
+                then
+                    echo 'Successfully cloned GeoCalib repository to $container_geocalib_dir'
+                else
+                    echo 'Failed to clone GeoCalib repository. Please ensure you have SSH access to github.com:cvg/GeoCalib.git'
+                    echo 'You may need to:'
+                    echo '  1. Set up SSH keys for GitHub'
+                    echo '  2. Add the SSH key to your GitHub account' 
+                    echo '  3. Verify SSH access with: ssh -T git@github.com'
+                    echo '  4. Ensure SSH agent is running: eval \$(ssh-agent) && ssh-add'
+                    exit 1
+                fi
+            else
+                echo 'GeoCalib repository already exists at $container_geocalib_dir'
+                echo 'Pulling latest changes...'
+                cd '$container_geocalib_dir' && git pull origin main
+            fi
+            
+            # Download and extract GeoCalib model
+            local model_dir='/auto-magic-calib/models/geocalib'
+            local model_url='https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar'
+            local temp_model_file='/tmp/geocalib-pinhole.tar'
+            
+            if [ ! -d "\$model_dir" ] || [ -z "\$(ls -A \$model_dir 2>/dev/null)" ]; then
+                echo 'Downloading GeoCalib model from \$model_url...'
+                if wget -O "\$temp_model_file" "\$model_url"
+                then
+                    echo 'Successfully downloaded GeoCalib model'
+                    echo 'Extracting model to \$model_dir...'
+                    mkdir -p "\$model_dir"
+                    if tar -xf "\$temp_model_file" -C "\$model_dir" --strip-components=1
+                    then
+                        echo 'Successfully extracted GeoCalib model'
+                        rm -f "\$temp_model_file"
+                    else
+                        echo 'Failed to extract GeoCalib model'
+                        rm -f "\$temp_model_file"
+                        exit 1
+                    fi
+                else
+                    echo 'Failed to download GeoCalib model from \$model_url'
+                    exit 1
+                fi
+            else
+                echo 'GeoCalib model already exists at \$model_dir'
+            fi
+            
+            echo 'GeoCalib setup completed inside container'
+            # Keep container running briefly for commit
+            sleep 2
+        "
+    
+    # Wait for the setup to complete
+    echo "Waiting for GeoCalib setup to complete..."
+    docker wait $container_name
+    
+    # Check if the setup was successful
+    if [ $? -eq 0 ]; then
+        echo "✓ GeoCalib repository successfully set up inside container"
+        
+        # Commit the container with GeoCalib to create updated image
+        echo "Committing container with GeoCalib to auto-magic-calib:latest..."
+        docker commit $container_name $auto_magic_image
+        
+        if [ $? -eq 0 ]; then
+            echo "✓ Successfully committed updated container image with GeoCalib"
+        else
+            echo "⚠ Warning: Failed to commit container image"
+        fi
+    else
+        echo "⚠ Warning: Failed to set up GeoCalib repository inside container"
+        echo "Please ensure:"
+        echo "  1. SSH agent is running: eval \$(ssh-agent) && ssh-add"
+        echo "  2. SSH key has access to github.com:cvg/GeoCalib.git"
+        echo "  3. auto-magic-calib:latest container image is available"
+    fi
+    
+    # Clean up the temporary container
+    echo "Cleaning up temporary container..."
+    docker rm $container_name > /dev/null 2>&1
+}
+
 echo "Setup for AutoMagicCalib..."
 
 echo "Pulling required containers..."
 setup_deepstream_container;
 setup_auto_magic_calib_container;
+
+echo "Setting up GeoCalib repository inside container..."
+setup_geocalib_repository;
 
 # DeepStream container doesn't include the detector and Re-ID models needed, so need to download from NGC.
 echo "Downloading NGC models..."
