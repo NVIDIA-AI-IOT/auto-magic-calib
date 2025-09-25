@@ -4,6 +4,7 @@
 MODE="docker"
 INPUT_BASE_DIR=""
 OUTPUT_BASE_DIR=""
+G_FLAG=false
 
 # Function to display usage
 usage() {
@@ -18,11 +19,12 @@ usage() {
     echo ""
     echo "Optional arguments:"
     echo "  -m <mode>             Execution mode: 'local' or 'docker' (default: 'docker')"
+    echo "  -g                    Enable additional processing in convert_to_mv3dt.py"
     echo "  -h                    Show this help message"
     echo "Examples:"
     echo "  $0 -i /home/user/input/ -o /home/user/output/"
     echo "  $0 -i /home/user/input/ -o /home/user/output/ -m local"
-    echo "  $0 -i /home/user/input/ -o /home/user/output/ -m docker"
+    echo "  $0 -i /home/user/input/ -o /home/user/output/ -m docker -g"
 }
 
 # Parse command line arguments
@@ -39,6 +41,10 @@ while [[ $# -gt 0 ]]; do
         -o)
             OUTPUT_BASE_DIR="$2"
             shift 2
+            ;;
+        -g)
+            G_FLAG=true
+            shift
             ;;
         -h)
             usage
@@ -78,6 +84,9 @@ if [ -n "$INPUT_BASE_DIR" ]; then
 fi
 if [ -n "$OUTPUT_BASE_DIR" ]; then
     echo "Output base directory: $OUTPUT_BASE_DIR"
+fi
+if [ "$G_FLAG" = true ]; then
+    echo "G flag: enabled"
 fi
 
 # Set up environment based on mode
@@ -157,9 +166,15 @@ echo ""
 echo "================================================================"
 echo "Conversion to MV3DT file structure started"
 echo "================================================================"
+G_FLAG_ARG=""
+if [ "$G_FLAG" = true ]; then
+    G_FLAG_ARG="-g"
+fi
+
 run_python "${ALGO_ROOT}/utils/convert_to_mv3dt.py" \
             --input_dir "$INPUT_ROOT" \
-            --output_dir "$OUTPUT_ROOT"
+            --output_dir "$OUTPUT_ROOT" \
+            $G_FLAG_ARG
 
 if [ $? -ne 0 ]; then
     echo "Error: Conversion to MV3DT file structure failed"
