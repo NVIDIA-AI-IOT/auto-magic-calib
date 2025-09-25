@@ -61,7 +61,7 @@ AutoMagicCalib is a tool that estimates both intrinsic and extrinsic camera cali
 ### NGC Setup
 This step is needed to pull AutoMagicCalib and DeepStream docker images.
 1. Visit NGC sign in page, enter your email address and click Next, or Create an Account
-2. Choose your organization as `nvdeepstream/deepstream-tools` when prompted for Organization/Team
+2. Choose your organization as `nvstaging/deepstream` when prompted for Organization/Team
 3. Generate an API key following the instructions
 4. Log in to the NGC docker registry:
 ```bash
