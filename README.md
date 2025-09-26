@@ -748,7 +748,7 @@ Once the UI launches, you should see a window similar to this screenshot.
 
 
 <div align="center">
-<img src="resources/images/manual_alignment_UI.png" alt="Manual Alignment UI" width="70%">
+<img src="resources/images/manual_alignment_UI.png" alt="Manual Alignment UI" width="85%">
 </div>
 
 In the window, the image on the left is the camera 0's view, one in the middle is 
@@ -767,7 +767,7 @@ You need to click the following order:
 This figure is one example of the 4 corresponding points for the sample data.
 
 <div align="center">
-<img src="resources/images/manual_alignment_data.png" alt="Manual Alignment Data" width="70%">
+<img src="resources/images/manual_alignment_data.png" alt="Manual Alignment Data" width="85%">
 </div>
 
 
