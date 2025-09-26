@@ -741,16 +741,9 @@ For example, the following JSON file is for the sample data.
   ]
 ]
 ```
-You can add the corresponding points to `manual_alignment.json` file manually. 
 
-Or you might use one simple manual alignment UI we provide. There are 2 ways to do this. 
+You can use Interactive GUI to generate this flie. `launch_EndToEndCalib.sh` optionally run manual alignment UI and outputs the result (see example in [1. Complete End-to-End Pipeline](#1-complete-end-to-end-pipeline)). Make sure to remove any pre-generated `manual_alignment.json` file in the dataset folder.
 
-- `launch_EndToEndCalib.sh` optionally run manual alignment UI and generate the file as a result (see example in [1. Complete End-to-End Pipeline](#1-complete-end-to-end-pipeline)). Make sure to remove any pre-generated `manual_alignment.json` file in the dataset folder.
-- Or, developers with an access permission to the AMC repo may launch the python script as follows:
-
-```bash
-python core/camera_estimation/layout_alignment.py -c /path/to/mv_amc_config.yaml -o /path/to/output_base_dir -l /path/to/layout.png
-```
 Once the UI launches, you should see a window similar to this screenshot.
 
 
