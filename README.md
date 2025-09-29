@@ -1,6 +1,6 @@
 # AutoMagicCalib
 
-AutoMagicCalib is a tool that estimates both intrinsic and extrinsic camera calibration parameters (e.g., camera projection matrix and lens distortion coefficients) for single- and multi-camera systems.
+AutoMagicCalib is a tool that estimates both intrinsic and extrinsic camera calibration parameters (e.g., camera projection matrix and lens distortion coefficients) for single-camera and multi-camera systems.
 
 ## Features
 - Estimate camera lens distortion parameter (k1)
