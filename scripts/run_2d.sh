@@ -15,7 +15,7 @@ docker run -it --rm --security-opt=no-new-privileges --ipc=host --network host -
 	-e P4ROOT=$P4ROOT -v /tmp/.X11-unix/:/tmp/.X11-unix -v $HOME:$HOME -w $PWD \
 	--cap-add=SYS_PTRACE --security-opt seccomp=unconfined --shm-size="8g" \
 	-v /tmp/.X11-unix/:/tmp/.X11-unix \
-	gitlab-master.nvidia.com:5005/deepstreamsdk/release_image/deepstream:8.0.0-triton-25.09.1-ma \
+	nvcr.io/nvidia/deepstream:8.0-triton-multiarch \
 	deepstream-app -c $SCRIPT_ROOT/../configs/config_DeepStream/conf_2d.txt
 
 mv $SCRIPT_ROOT/../configs/config_DeepStream/kitti_detector $1 -f

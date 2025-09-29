@@ -58,6 +58,7 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
 ### System Requirements
 - x86_64 system
 - OS Ubuntu 24.04
+- NVIDIA GPU with hardware encoder (NVENC)
 - NVIDIA driver 570
 - Docker (setup to run without sudo privilege)
 - NVIDIA container toolkit (see [NVIDIA DeepStream Docker Prerequisites](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_docker_containers.html#prerequisites))

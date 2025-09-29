@@ -43,7 +43,7 @@ setup_deepstream_container() {
 }
 
 # DeepStream container image variable for reuse
-DEEPSTREAM_IMAGE="gitlab-master.nvidia.com:5005/deepstreamsdk/release_image/deepstream:8.0.0-triton-25.09.1-ma"
+DEEPSTREAM_IMAGE="nvcr.io/nvidia/deepstream:8.0-triton-multiarch"
 
 
 setup_geocalib_repository() {
