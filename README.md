@@ -1,11 +1,14 @@
 # AutoMagicCalib
 
-AutoMagicCalib is a tool that estimates both intrinsic and extrinsic camera calibration parameters (e.g., camera projection matrix and lens distortion coefficients) for single-camera and multi-camera systems.
+AutoMagicCalib (AMC) is an automated calibration tool that estimates both intrinsic and extrinsic camera parameters for single-camera and multi-camera systems. It provides camera projection matrices and lens distortion coefficients essential for accurate 3D reconstruction and multi-view applications.
+
+AMC eliminates the need for traditional calibration patterns (like checkerboards) by using tracked moving objects in the scene as natural features for calibration. It leverages DeepStream's object detection and tracking capabilities to identify and follow objects (particularly people) across frames, then analyzes these trajectories across camera views to automatically derive camera parameters from regular operational footage. This approach enables calibration without interrupting normal operations, allows retroactive calibration using archived footage, and performs calibration in the actual deployment environment.
+
 
 ## Features
 - Estimate camera lens distortion parameter (k1)
 - Estimate 3x4 camera projection matrix (focal length, rotation, translation)
-- **Ground truth focal length override**: Use known focal lengths while preserving GeoCalib rotation intelligence
+- Ground truth focal length override: Use known focal lengths while preserving GeoCalib rotation intelligence
 - Output calibration results in YAML format
 - Visualization tools:
   - Score metrics graphs of parameter estimation
@@ -43,6 +46,7 @@ AutoMagicCalib is a tool that estimates both intrinsic and extrinsic camera cali
 - [Assumptions](#assumptions)
   - [Input Video Naming Convention](#input-video-naming-convention)
   - [Input Video Resolution](#input-video-resolution)
+  - [Time-synced Input Videos](#time-synced-input-videos)
   - [Ground Truth Directory Structure](#ground-truth-directory-structure)
   - [Layout and Alignment Files](#layout-and-alignment-files)
   - [Camera Configuration](#camera-configuration)
@@ -794,6 +798,9 @@ Cameras must be specified in order and have overlapping areas: `cam_00` overlaps
 
 ### Input Video Resolution:
 Video files' resolution should be 1920x1080. 
+
+### Time-synced Input Videos:
+Input video files from all cameras must be synchronized
 
 ### Ground Truth Directory Structure:
 When providing ground truth data for evaluation, the directory structure must follow this specific naming convention:
