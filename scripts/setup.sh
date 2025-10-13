@@ -18,7 +18,7 @@
 
 setup_auto_magic_calib_container() {
     # Define the source image to make it easier to read and modify
-    local source_image="nvcr.io/nvstaging/deepstream/auto-magic-calib:1.0"
+    local source_image="nvcr.io/nvidia/auto-magic-calib:1.0"
 
     # Define the local tag your script needs
     local local_tag="auto-magic-calib:latest"
