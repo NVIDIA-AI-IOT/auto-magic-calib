@@ -51,6 +51,7 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
   - [Layout and Alignment Files](#layout-and-alignment-files)
   - [Camera Configuration](#camera-configuration)
   - [File Structure Requirements](#file-structure-requirements)
+- [License](#license)
 
 <br><br>
 # Quick Start
