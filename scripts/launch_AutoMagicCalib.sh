@@ -214,32 +214,35 @@ cleanup() {
         echo "Containers stopped successfully"
     fi
     
-    # Clean up detector config symlinks
+    # Clean up detector config copies
     cleanup_detector_configs
 }
 
-# Function to setup detector config symlinks
+# Function to setup detector config copies
 setup_detector_configs() {
     local config_dir="../configs/config_DeepStream"
+    local source_file="$config_dir/config_deepstream_2d_${DETECTOR_TYPE}.txt"
+    local target_file="$config_dir/conf_2d.txt"
     
     echo "Setting up detector configs for $DETECTOR_TYPE..."
     
-    # Remove existing symlink if it exists
-    [ -L "$config_dir/conf_2d.txt" ] && rm "$config_dir/conf_2d.txt"
+    # Remove existing file if it exists
+    [ -f "$target_file" ] && rm "$target_file"
     
-    # Create new symlink
-    ln -sf "config_deepstream_2d_${DETECTOR_TYPE}.txt" "$config_dir/conf_2d.txt"
+    # Copy the config file
+    cp "$source_file" "$target_file"
     
-    echo "Created symlink:"
-    echo "  conf_2d.txt -> config_deepstream_2d_${DETECTOR_TYPE}.txt"
+    echo "Created copy:"
+    echo "  conf_2d.txt (from config_deepstream_2d_${DETECTOR_TYPE}.txt)"
 }
 
-# Function to cleanup detector config symlinks
+# Function to cleanup detector config copies
 cleanup_detector_configs() {
     local config_dir="../configs/config_DeepStream"
+    local target_file="$config_dir/conf_2d.txt"
     
-    # Remove symlink if it exists
-    [ -L "$config_dir/conf_2d.txt" ] && rm "$config_dir/conf_2d.txt"
+    # Remove copy if it exists
+    [ -f "$target_file" ] && rm "$target_file"
 }
 
 # Set up trap for cleanup on exit
@@ -332,8 +335,6 @@ echo "done converting format"
 
 # copy detection
 cp "${OUT_DIR}/Det-Stream_0.log" "${OUT_DIR}/Det-bboxes.log"
-# restore video file name
-sed -i "s/uri=file:\/\/${rectified_video_escaped}/uri=file:\/\/video.mp4/g" ../configs/config_DeepStream/conf_2d.txt
 
 # Step 4: Bounding box sampling
 echo ""

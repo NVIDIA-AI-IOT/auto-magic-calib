@@ -65,7 +65,7 @@ usage() {
 
 > $OUT_FILE
 i=0
-for IN_FILE in `ls -v $IN_DIR/$PREFIX*.txt`
+while IFS= read -r -d '' IN_FILE
 do
     [[ "$IN_FILE" == "$OUT_FILE" ]] && continue
     while IFS=" " read -r f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12 f13 f14 f15 f16 f17 f18
@@ -87,9 +87,9 @@ do
         confidence=$f17
         printf "%u,%d,%d,%d,%d,%d,%f,-1,-1,-1\n" \
 	       "$frame" "$id" "$x1" "$y1" "$width" "$height" "$confidence" >> $OUT_FILE
-    done < $IN_FILE
+    done < "$IN_FILE"
     ((i++))
-done
+done < <(find "$IN_DIR" -maxdepth 1 -name "$PREFIX*.txt" -type f -print0 | sort -zV)
 
 ((i--))
 echo "Done converting $i frames"

@@ -74,28 +74,31 @@ fi
 
 echo "Using detector type: $DETECTOR_TYPE"
 
-# Function to setup detector config symlink
+# Function to setup detector config copy
 setup_detector_configs() {
     local config_dir="$(dirname "$0")/../configs/config_DeepStream"
+    local source_file="$config_dir/config_deepstream_3d_${DETECTOR_TYPE}.txt"
+    local target_file="$config_dir/conf_3d.txt"
     
     echo "Setting up detector configs for $DETECTOR_TYPE..."
     
-    # Remove existing symlink if it exists
-    [ -L "$config_dir/conf_3d.txt" ] && rm "$config_dir/conf_3d.txt"
+    # Remove existing file if it exists
+    [ -f "$target_file" ] && rm "$target_file"
     
-    # Create new symlink
-    ln -sf "config_deepstream_3d_${DETECTOR_TYPE}.txt" "$config_dir/conf_3d.txt"
+    # Copy the config file
+    cp "$source_file" "$target_file"
     
-    echo "Created symlink:"
-    echo "  conf_3d.txt -> config_deepstream_3d_${DETECTOR_TYPE}.txt"
+    echo "Created copy:"
+    echo "  conf_3d.txt (from config_deepstream_3d_${DETECTOR_TYPE}.txt)"
 }
 
-# Function to cleanup detector config symlink
+# Function to cleanup detector config copy
 cleanup_detector_configs() {
     local config_dir="$(dirname "$0")/../configs/config_DeepStream"
+    local target_file="$config_dir/conf_3d.txt"
     
-    # Remove symlink if it exists
-    [ -L "$config_dir/conf_3d.txt" ] && rm "$config_dir/conf_3d.txt"
+    # Remove copy if it exists
+    [ -f "$target_file" ] && rm "$target_file"
 }
 
 # Function to cleanup on exit
@@ -136,8 +139,6 @@ docker run -it --rm --security-opt=no-new-privileges --ipc=host --network host -
     nvcr.io/nvidia/deepstream:8.0-triton-multiarch \
     deepstream-app -c $SCRIPT_ROOT/../configs/config_DeepStream/conf_3d.txt
 
-# restore video file name
-sed -i "s/uri=file:\/\/${rectified_video}/uri=file:\/\/video.mp4/g" $SCRIPT_ROOT/../configs/config_DeepStream/conf_3d.txt
 rm camInfo-temp.yaml
 
 #mkdir -p $3
