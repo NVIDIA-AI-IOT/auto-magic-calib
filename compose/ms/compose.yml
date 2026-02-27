@@ -23,8 +23,8 @@ services:
     
     # Volume mounts
     volumes:
-      - $PROJECT_DIR:/home/auto-calibration-ms/server/projects
-      - $MODEL_DIR/vggt:/tmp/vggt_model:ro
+      - ${PROJECT_DIR:-../../projects}:/home/auto-calibration-ms/server/projects
+      - ${MODEL_DIR:-../../models}/vggt:/tmp/vggt_model:ro
     
     # Working directory inside container
     working_dir: /home/auto-calibration-ms/server
