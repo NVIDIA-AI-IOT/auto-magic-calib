@@ -1,0 +1,16 @@
+services:
+  auto-magic-calib-ui:
+    image: nvcr.io/nv-metropolis-dev/auto-calib/vss-auto-calibration-ui:3.1.0-15
+    container_name: auto-magic-calib-ui-2
+    
+    ports:
+      - ${AUTO_MAGIC_CALIB_UI_PORT:-5000}:5000
+    
+    # IPC settings for GPU memory sharing
+    ipc: host
+
+    environment:
+      - API_URL=${AUTO_MAGIC_CALIB_MS_API_URL:-http://${HOST_IP}:${AUTO_MAGIC_CALIB_MS_PORT:-8000}/v1}
+
+    restart: unless-stopped
+
