@@ -23,7 +23,7 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
 - [Quick Start](#quick-start)
   - [System Requirements](#system-requirements)
   - [NGC Setup](#ngc-setup)
-  - [Scripts Setup](#scripts-setup)
+  - [Project Setup](#project-setup)
   - [Sample Data Setup](#sample-data-setup)
 - [Launch End-to-End Pipeline](#launch-end-to-end-pipeline)
   - [Use Case 1: Calibration with Ground Truth Data, with Quantitative/Qualitative Evaluation](#use-case-1-calibration-with-ground-truth-data-with-quantitativequalitative-evaluation)
@@ -76,18 +76,48 @@ Username: "$oauthtoken"
 Password: "YOUR_NGC_API_KEY"
 ```
 
-### Scripts Setup
-Clone the repo to your local directory, then run the setup script to prepare required resources. Docker images will be pulled automatically.
+### Project Setup
+Clone the repo to your local directory and initialize submodules.
 ```bash
 # clone the repo
 cd auto-magic-calib   # or auto-magic-calib-dev (if dev repo)
 git submodule update --init --recursive
 git lfs pull
-cd scripts
-bash setup.sh 
 ```
 
-If the setup is successful, the sample directory structure should look like this:
+#### Configure Environment Variables
+Edit the `compose/.env` file to set the required environment variables.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `HOST_IP` | **Yes** | — | IP address of the host machine |
+| `AUTO_MAGIC_CALIB_MS_PORT` | No | `8000` | Port for the microservice API |
+| `AUTO_MAGIC_CALIB_UI_PORT` | No | `5000` | Port for the web UI |
+| `PROJECT_DIR` | No | `../../projects` | Path to the projects directory |
+| `MODEL_DIR` | No | `../../models` | Path to the models directory |
+
+```bash
+# At minimum, set HOST_IP in compose/.env
+HOST_IP=<your_host_ip>
+```
+
+#### Set Directory Permissions
+The `projects` and `models` directories must be owned by UID/GID 1000 for the containers to read/write properly.
+```bash
+chown 1000:1000 -R projects
+chown 1000:1000 -R models
+```
+
+#### Launch Services
+Start all services using Docker Compose. Docker images will be pulled automatically on the first run.
+```bash
+cd compose
+docker compose up
+```
+The microservice will be available at `http://<HOST_IP>:<AUTO_MAGIC_CALIB_MS_PORT>` (default port 8000) and the UI at `http://<HOST_IP>:<AUTO_MAGIC_CALIB_UI_PORT>` (default port 5000).
+
+#### Repository Structure
+The repository directory structure looks like this:
 ```
 ~/auto-magic-calib
 ├── configs
@@ -136,14 +166,6 @@ If the setup is successful, the sample directory structure should look like this
     ├── run_2d.sh
     ├── run_3d.sh
     └── setup.sh
-```
-
-Also verify docker images are available:
-```bash
-docker images 
-# Should show:
-# nvcr.io/nvidia/auto-magic-calib:1.0                                    1.0
-# nvcr.io/nvidia/deepstream                                              8.0-triton-multiarch
 ```
 
 ### Sample Data Setup
