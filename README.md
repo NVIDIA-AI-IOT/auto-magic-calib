@@ -28,6 +28,11 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
     - [Set Directory Permissions](#set-directory-permissions)
     - [Launch Services](#launch-services)
   - [Sample Data Setup](#sample-data-setup)
+- [Assumptions](#assumptions)
+  - [Input Video Contents](#input-video-contents)
+  - [Input Video Resolution](#input-video-resolution)
+  - [Time-synced Input Videos](#time-synced-input-videos)
+  - [Ground Truth Directory Structure](#ground-truth-directory-structure)
 - [License](#license)
   - [Repository Licenses](#repository-licenses)
   - [Proprietary Container Notices](#proprietary-container-notices-automagiccalib)
@@ -55,13 +60,11 @@ Password: "YOUR_NGC_API_KEY"
 ```
 
 ### Project Setup
-Clone the repo to your local directory and initialize submodules.
+Clone the repo to your local directory.
 ```bash
 # clone the repo
 git clone ssh://git@gitlab-master.nvidia.com:12051/DeepStreamSDK/auto-magic-calib.git
 cd auto-magic-calib
-git submodule update --init --recursive
-git lfs pull
 ```
 
 #### Configure Environment Variables
@@ -126,6 +129,25 @@ Unzip the compressed sample data file under `auto-magic-calib/assets`. The sampl
 Now you're ready to start the calibration process.
 
 In case you want to try your own dataset, please verify requirements (files, directories, formats) explained in [Assumptions](#assumptions) section.
+
+
+# Assumptions
+
+AutoMagicCalib makes several assumptions about input data structure. Please ensure your data follows these requirements:
+
+## Input Video Contents:
+There must be objects moving around the scene, because AMC relies on tracking results.
+Cameras must be specified in order and have overlapping areas: `cam_00` overlaps with `cam_01`, and `cam_01` overlaps with `cam_02`, ...
+
+## Input Video Resolution:
+Video files' resolution should be 1920x1080. 
+
+## Time-synced Input Videos:
+Input video files from all cameras must be synchronized
+
+## Ground Truth Directory Structure:
+When providing ground truth data for evaluation, the it must follow this specific naming convention:
+
 
 # License
 
