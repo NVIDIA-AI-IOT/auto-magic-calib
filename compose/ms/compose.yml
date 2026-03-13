@@ -1,7 +1,7 @@
 services:
   auto-magic-calib-ms:
-    image: nvcr.io/nv-metropolis-dev/auto-calib/vss-auto-calibration:3.1.0-98
-    container_name: auto-magic-calib-ms-2
+    image: nvcr.io/nvstaging/deepstream/auto-magic-calib:2.0.0
+    container_name: auto-magic-calib-ms-1
     
     # GPU support
     runtime: nvidia
