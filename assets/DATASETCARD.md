@@ -9,7 +9,7 @@ This dataset is ready for commercial use under CC BY 4.0 license
 NVIDIA Corporation
 
 ## Dataset Creation Date:
-September 2025
+January 2026
 
 ## License/Terms of Use: 
 CC BY 4.0 license
@@ -33,8 +33,10 @@ A sample synthetic dataset to demonstrate AMC Tool's capability on camera calibr
 ## Dataset Quantification
 * 4 Video files
 * 1 Image file
-* Total 27,022 items including various metadata files
-* Total 219.4 MB in a compressed file (722.1MB when unzipped)
+* 1 GT.zip file
+* 1 Alignment JSON file
+* Total 7 items
+* Total 154 MB in a compressed file (154 MB when unzipped)
 
 ## Reference(s):
 N/A
