@@ -6,9 +6,6 @@ services:
     ports:
       - ${AUTO_MAGIC_CALIB_UI_PORT:-5000}:5000
     
-    # IPC settings for GPU memory sharing
-    ipc: host
-
     environment:
       - API_URL=${AUTO_MAGIC_CALIB_MS_API_URL:-http://${HOST_IP}:${AUTO_MAGIC_CALIB_MS_PORT:-8000}/v1}
 

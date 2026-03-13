@@ -1,2 +1,2 @@
-Projects and state will be store in this directory
+Projects and state will be stored in this directory
 
