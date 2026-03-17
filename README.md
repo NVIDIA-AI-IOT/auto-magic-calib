@@ -36,6 +36,11 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
   - [Input Video Contents](#input-video-contents)
   - [Input Video Resolution](#input-video-resolution)
   - [Time-synced Input Videos](#time-synced-input-videos)
+- [Custom Dataset](#custom-dataset)
+  - [Guidelines for Input Videos](#guidelines-for-input-videos-to-achieve-optimal-calibration-results)
+  - [Ground Truth Data Format](#ground-truth-data-format)
+    - [calibration.json](#calibrationjson)
+    - [ground\_truth.json](#ground_truthjson)
 - [License](#license)
   - [Repository Licenses](#repository-licenses)
   - [Proprietary Container Notices](#proprietary-container-notices-automagiccalib)
@@ -379,6 +384,7 @@ ROIs define areas of interest for detection and tracking.
 **ROI Features**
 - **Color**: Green (#00ff00)
 - **Minimum Points**: 3
+- **Maximum Points**: Unlimited
 - **Auto-save**: Saved immediately upon completion
 
 ![ROI Drawing](resources/images/vss-autocalib-ui/roi_drawing.jpg)
@@ -437,6 +443,7 @@ Tripwire directions are used for unidirectional counting with an arrow indicator
 **Visual Feedback**
 - **Drawing Mode**: Active tool is highlighted in the toolbar
 - **Cursor**: Changes to crosshair when in drawing mode
+- **Point Markers**: Visible while drawing
 - **Completed Annotations**: Rendered with solid colors
 
 ### Annotation List (Right Panel)
@@ -482,7 +489,28 @@ All annotations (ROIs, tripwires, tripwire directions) are automatically saved t
 - Per-camera storage
 - Survives page refresh
 
-> The green success message "Annotations are saved automatically as you draw. Proceed to the next step when ready." confirms auto-save is active.
+> The green success message "Note: Annotations are saved automatically as you draw. Proceed to the next step when ready." confirms auto-save is active.
+
+### Configuring Settings
+
+On the Parameters step, you can customize calibration settings before running the pipeline. The settings icon in the top-right corner of the header is **only visible on this step**.
+
+Click the settings icon in the top-right corner to access application settings.
+
+![Settings Dialog](resources/images/vss-autocalib-ui/settings_dialog.jpg)
+
+**Configuration Options**
+- **Option 1: Upload** — upload a pre-configured settings file to apply all parameters at once
+- **Option 2: Manual Configuration** — modify each parameter individually through the settings interface
+
+**Additional Actions**
+- **Download**: Export the current settings configuration to a file
+- **Reset to Defaults**: Restore all settings to their default values
+- **Save Settings**: Save your changes
+
+![Settings Update](resources/images/vss-autocalib-ui/settings_update.jpg)
+
+> **Warning:** Do not attempt to change the settings while AMC calibration is running. Make all configuration changes before starting the calibration process (in Step 5: Execute).
 
 ---
 
@@ -719,27 +747,6 @@ Before running calibration, you must verify the project.
 
 ![Verify Project](resources/images/vss-autocalib-ui/verify_project.jpg)
 
-### Configuring Settings
-
-Before running calibration, you can customize the settings parameters.
-
-Click the settings icon in the top-right corner to access application settings.
-
-![Settings Dialog](resources/images/vss-autocalib-ui/settings_dialog.jpg)
-
-**Configuration Options**
-- **Option 1: Upload** — upload a pre-configured settings file to apply all parameters at once
-- **Option 2: Manual Configuration** — modify each parameter individually through the settings interface
-
-**Additional Actions**
-- **Download**: Export the current settings configuration to a file
-- **Reset to Defaults**: Restore all settings to their default values
-- **Save Settings**: Save your changes
-
-![Settings Update](resources/images/vss-autocalib-ui/settings_update.jpg)
-
-> **Warning:** Do not attempt to change the settings while AMC calibration is running. Make all configuration changes before starting the calibration process.
-
 ### Running AMC Calibration
 
 AMC (Auto Magic Calibration) is the primary calibration method.
@@ -763,7 +770,12 @@ AMC (Auto Magic Calibration) is the primary calibration method.
 
 **Stopping Calibration**
 
-If needed, click **Stop Calibration** (appears when RUNNING). The calibration process terminates and the project state changes back to "READY".
+If needed, you can stop the calibration:
+
+1. Click **Stop Calibration** button (appears when RUNNING)
+2. Calibration process terminates
+3. Project state changes back to "READY"
+4. Elapsed time resets
 
 > **Warning:** Stopping calibration will discard partial results. You'll need to start over.
 
@@ -773,6 +785,8 @@ When AMC calibration finishes successfully:
 - **Success Alert**: "✅ AMC Calibration completed successfully!"
 - **Message**: "You can now run VGGT calibration or proceed to view results."
 - **Project State**: Changes to "COMPLETED"
+- **AMC State**: Shows "COMPLETED" badge
+- **Next Steps**: Proceed to Results or run VGGT (if available)
 
 ![AMC Calibration Completed](resources/images/vss-autocalib-ui/amc_completed.jpg)
 
@@ -782,6 +796,7 @@ If calibration fails:
 - **Error Alert**: "❌ Calibration failed!"
 - **Message**: "Please check your input files and try again."
 - **Project State**: Changes to "ERROR"
+- **Reset Option**: "Reset Project" button appears
 
 **How to Recover**
 
@@ -831,8 +846,9 @@ VGGT (Vision-Geometry Graph Transformer) is an optional refinement method availa
 
 When VGGT finishes:
 - **Success Alert**: "✅ VGGT calibration completed successfully!"
+- **Message**: "Refined calibration results are available."
 - **VGGT State**: Shows "COMPLETED" badge
-- Both AMC and VGGT results available in the next step
+- **Results**: Both AMC and VGGT results available in next step
 
 **VGGT Not Available**
 
@@ -864,6 +880,20 @@ If you need to start over:
 
 > **Warning:** Resetting clears all calibration results. Export results before resetting if needed.
 
+### Best Practices
+
+**Before Calibration**
+- Double-check all uploaded files
+- Verify alignment points are accurate
+- Review ROIs and tripwires
+- Ensure stable network connection
+
+**After Calibration**
+- Verify results in the Results step
+- Run VGGT if available for refinement
+- Export results before making changes
+- Keep a backup of exported data
+
 ### Troubleshooting
 
 **Verification Fails**
@@ -875,6 +905,7 @@ If you need to start over:
 **Calibration Takes Too Long**
 - Normal duration: 5–15 minutes depending on video length
 - Check server resources (CPU, GPU, memory)
+- Verify network connection is stable
 - Contact administrator if it exceeds 30 minutes
 
 **Calibration Fails**
@@ -988,7 +1019,16 @@ Export complete calibration data in various formats.
 
 > This is an advanced user feature. Edit the JSON only if you understand the calibration schema; any changes should be made carefully to avoid invalid or incorrect calibration output.
 
-- **Other exports (MV3DT ZIP)**: Click the desired export button, wait for processing (may take a few seconds), and the file downloads automatically to your browser's download folder.
+- **Other exports (MV3DT ZIP)**:
+
+  1. Click the desired export button
+  2. Wait for processing (may take a few seconds)
+  3. File downloads automatically to your browser's download folder
+  4. Success message confirms export
+
+> **Export Options Explained:**
+> - **Full Export**: Complete calibration with ROI/tripwire world coordinates
+> - **MV3DT ZIP**: MV3DT-compatible format for verification
 
 ### ROI & Tripwire Verification
 
@@ -1055,6 +1095,10 @@ At the bottom of the page, a success message confirms calibration is complete.
 
 ![Calibration Complete](resources/images/vss-autocalib-ui/calib_completed.jpg)
 
+**Message**
+- **Title**: "🎉 Calibration Complete!"
+- **Text**: "All calibration results are ready. You can export the data and use it in your applications."
+
 ### How to Interpret Calibration Outputs
 
 Upon completion, the UI presents overlay images and metric numbers depending on whether ground truth data was provided.
@@ -1087,6 +1131,40 @@ When ground truth data is unavailable, calibration results can be compared quali
 - FOV (Field of View) boundaries should align with physical constraints
 - Compare AMC and VGGT overlays to identify which better matches the layout
 
+### Best Practices
+
+**Reviewing Results**
+- Check overlay image for proper camera coverage
+- Verify evaluation metrics if ground truth is available
+- Compare AMC and VGGT results if both available
+- Review camera parameters for reasonableness
+
+**Exporting Data**
+- Export both AMC and VGGT results for comparison
+- Keep MV3DT ZIP for verification purposes
+- Store exports with descriptive names and dates
+- Maintain backups of important calibration data
+
+**Verification**
+- Always verify ROI/tripwire projections
+- Check all cameras, not just one
+- Use zoom to inspect details
+- Compare AMC vs VGGT projections
+
+**Before Deleting**
+- Export all needed data first
+- Verify exports are complete and valid
+- Document any issues or observations
+- Consider keeping project for reference
+
+### Next Steps
+
+After completing calibration:
+- Use exported data in your surveillance application
+- Integrate calibration parameters with your tracking system
+- Set up ROIs and tripwires in your production environment
+- Monitor and validate calibration accuracy in real-world scenarios
+
 
 # Assumptions
 
@@ -1101,6 +1179,171 @@ Video files' resolution should be 1920x1080.
 
 ## Time-synced Input Videos:
 Input video files from all cameras must be synchronized
+
+
+# Custom Dataset
+
+For a custom dataset, you should prepare the following items:
+
+- **Input videos** — Camera video files for calibration
+- **A floor map** — Layout/map image of the surveillance area
+- **Ground truth data (optional)** — For calibration evaluation
+
+The input videos required for calibration must be uploaded to the tool. Users should pay close attention to the order in which they upload the video streams, as this order implicitly determines the pairing of the cameras. For optimal results, consecutive camera pairs should have a significant amount of overlapping Field of View (FOV).
+
+## Guidelines for Input Videos to Achieve Optimal Calibration Results
+
+To ensure the most accurate camera calibration, careful consideration should be given to how the input videos are captured. The following points detail how to maximize the quality of the calibration outcome.
+
+### 1. Minimizing Lens Distortion
+
+The current calibration methodology performs best when input videos are "linear," meaning they exhibit no lens distortion. While the tool can handle minor distortion, optimal results are achieved when lens distortion is zero.
+
+### 2. Maximizing Camera Overlap
+
+Accurate calibration requires a significant degree of overlap between the fields of view of the different cameras. It is essential to maximize the overlap between cameras as much as possible.
+
+### 3. Leveraging Unique Scene Features
+
+The presence of diverse and unique objects in the input videos contributes significantly to calibration accuracy. Our automatic calibration tool specifically utilizes people moving within the field of view, so videos with many moving people are ideal. The trajectories of these moving subjects should cover the Field of View (FOV) as broadly as possible.
+
+Additionally, large, unique objects can enhance accuracy. For instance, in a setting like a warehouse with multiple cameras, views can become challenging due to repetitive elements (e.g., similar racks). In such environments, large, distinct objects, like forklifts, are beneficial for better calibration accuracy.
+
+## Ground Truth Data Format
+
+If you want to evaluate the camera calibration results using ground truth data, you should have a ZIP file containing the following data files:
+
+- `calibration.json`
+- `ground_truth.json`
+
+### calibration.json
+
+This file has camera parameters including intrinsic and extrinsic parameters. The JSON schema definition for calibration is as follows:
+
+```json
+{
+   "sensors": [
+       {
+           "id": "Camera",
+           "intrinsicMatrix": [
+               [1269.00511584492, -3.730349362740526e-14, 959.9999999999999],
+               [0.0, 1269.0051158449194, 539.9999999999999],
+               [0.0, 0.0, 0.9999999999999998]
+           ],
+           "extrinsicMatrix": [
+               [0.9999941499743863, 0.0020258073539418126, 0.00275610623331978, 7.506433779240641],
+               [0.00329149786382878, -0.3506837842628175, -0.9364881470135763, 1.2002890745303207],
+               [-0.0009306228113685242, 0.936491740251709, -0.3506884006942753, 11.111379874347342]
+           ],
+           "attributes": [
+               {"name": "frameWidth", "value": 1920},
+               {"name": "frameHeight", "value": 1080}
+           ],
+           "cameraMatrix": [
+               [1268.1042942335746, 901.6028305375089, -333.16335175660936, 20192.627546980937],
+               [3.6743913098523424, 60.686023462551134, -1377.7799858632666, 7523.318108219307],
+               [-0.0009306228113685238, 0.9364917402517088, -0.35068840069427526, 11.111379874347342]
+           ]
+       },
+       {
+           "id": "Camera_01",
+           "intrinsicMatrix": [
+               [1099.498973963849, -4.707345624410664e-14, 960.0],
+               [0.0, 1099.4989739638488, 539.9999999999998],
+               [0.0, 0.0, 1.0]
+           ],
+           "extrinsicMatrix": [
+               [-0.9999609312669344, -0.008839453589732555, 5.147844000033541e-11, -7.521032053009582],
+               [-0.004417374837733223, 0.4997143960386968, -0.866178970647073, -0.1501353870483639],
+               [0.007656548785712605, -0.8661451301323095, -0.49973392001021566, 10.265551144735602]
+           ],
+           "attributes": [
+               {"name": "frameWidth", "value": 1920},
+               {"name": "frameHeight", "value": 1080}
+           ],
+           "cameraMatrix": [
+               [-1092.1057310976453, -841.2182950793291, -479.7445631532065, 1585.5620735129166],
+               [-0.7223627574165982, 81.71709544806465, -1222.2192063010361, 5378.3239141418835],
+               [0.0076565487857126035, -0.8661451301323094, -0.4997339200102156, 10.2655511447356]
+           ]
+       }
+   ]
+}
+```
+
+**Parameter Descriptions:**
+
+| Parameter | Description |
+|---|---|
+| `id` | Unique string identifier for the sensor (e.g., Camera, Camera_01, Camera_02, …). This string should match the camera ID in `ground_truth.json`. |
+| `intrinsicMatrix` | 3×3 camera intrinsic parameter matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
+| `extrinsicMatrix` | 3×4 camera extrinsic parameter matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
+| `cameraMatrix` | 3×4 combined camera projection matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
+| `attributes` | Array of name-value pairs for additional sensor attributes. `frameHeight`: image height resolution, `frameWidth`: image width resolution. |
+
+### ground_truth.json
+
+This file has object information including 3D locations and bounding boxes. The JSON schema definition for ground truth object data is as follows:
+
+```json
+{
+    "0": [
+        {
+            "object id": 0,
+            "object type": "person",
+            "object name": "male_adult_police_04",
+            "3d location": [-7.82265567779541, 4.5983476638793945, -9.851457150045206e-11],
+            "2d bounding box visible": {
+                "Camera": [912, 362, 955, 507],
+                "Camera_01": [960, 664, 1062, 941]
+            }
+        },
+        {
+            "object id": 2,
+            "object type": "person",
+            "object name": "female_adult_police_01",
+            "3d location": [-17.455900192260742, 15.370429992675781, 0.02103900909423828],
+            "2d bounding box visible": {
+                "Camera": [447, 245, 470, 276]
+            }
+        },
+        {
+            "object id": 4,
+            "object type": "person",
+            "object name": "female_adult_police_03",
+            "3d location": [-13.054417610168457, 2.3046987056732178, 0.02103901281952858],
+            "2d bounding box visible": {
+                "Camera": [391, 418, 443, 576],
+                "Camera_01": [1668, 481, 1805, 688],
+                "Camera_02": [1084, 398, 1125, 530]
+            }
+        }
+    ],
+    "1": [
+        {
+            "object id": 0,
+            "object type": "person",
+            "object name": "male_adult_police_04",
+            "3d location": [-7.822440147399902, 4.597992420196533, -1.1969732149896828e-10],
+            "2d bounding box visible": {
+                "Camera": [912, 362, 955, 507],
+                "Camera_01": [960, 664, 1062, 609]
+            }
+        }
+    ]
+}
+```
+
+**Parameter Descriptions:**
+
+| Parameter | Description |
+|---|---|
+| frame index | Video frame index (0, 1, …) — the top-level keys |
+| `object id` | Object index (integer value) |
+| `object type` | Object class (person, fork lift, etc.) |
+| `object name` | Unique object name |
+| `3d location` | Object's 3D location in meters [x, y, z] |
+| `2d bounding box visible` | 2D bounding boxes in each camera view [x_min, y_min, x_max, y_max] |
 
 
 # License
