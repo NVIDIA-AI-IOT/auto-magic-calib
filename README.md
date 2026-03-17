@@ -24,51 +24,18 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
   - [System Requirements](#system-requirements)
   - [NGC Setup](#ngc-setup)
   - [Project Setup](#project-setup)
-    - [Configure Environment Variables](#configure-environment-variables)
-    - [Set Directory Permissions](#set-directory-permissions)
-    - [Launch Services](#launch-services)
   - [Sample Data Setup](#sample-data-setup)
 - [Calibration Workflow (UI)](#calibration-workflow-ui)
   - [Step 1: Project Setup](#step-1-project-setup)
-    - [Creating a New Project](#creating-a-new-project)
-    - [Selecting a Project](#selecting-a-project)
-    - [Managing Projects](#managing-projects)
   - [Step 2: Video Configuration](#step-2-video-configuration)
-    - [Upload Status Overview](#upload-status-overview)
-    - [Uploading Video Files](#uploading-video-files)
-    - [Uploading Ground Truth Data](#uploading-ground-truth-data)
-    - [Uploading Layout Image](#uploading-layout-image)
-    - [Uploading Alignment Data](#uploading-alignment-data)
   - [Step 3: Parameters](#step-3-parameters)
-    - [Camera Selection](#camera-selection)
-    - [Drawing Tools](#drawing-tools)
-    - [Drawing ROIs](#drawing-rois)
-    - [Drawing Tripwire Lines](#drawing-tripwire-lines)
-    - [Drawing Tripwire Directions](#drawing-tripwire-directions)
-    - [Focal Length Configuration](#focal-length-configuration)
   - [Step 4: Manual Alignment](#step-4-manual-alignment)
-    - [Two Options for Alignment](#two-options-for-alignment)
-    - [Interactive Alignment Tool](#interactive-alignment-tool)
-    - [Point Selection Process](#point-selection-process)
-    - [Saving Alignment Data](#saving-alignment-data)
-    - [Best Practices](#best-practices)
   - [Step 5: Execute Calibration](#step-5-execute-calibration)
-    - [Verification Process](#verification-process)
-    - [Running AMC Calibration](#running-amc-calibration)
-    - [VGGT Calibration (Optional)](#vggt-calibration-optional)
-    - [Troubleshooting](#troubleshooting)
   - [Step 6: Results](#step-6-results)
-    - [Overlay Image](#overlay-image)
-    - [Evaluation Metrics](#evaluation-metrics)
-    - [Camera Parameters](#camera-parameters)
-    - [Export Calibration Data](#export-calibration-data)
-    - [ROI & Tripwire Verification](#roi--tripwire-verification)
-    - [How to Interpret Calibration Outputs](#how-to-interpret-calibration-outputs)
 - [Assumptions](#assumptions)
   - [Input Video Contents](#input-video-contents)
   - [Input Video Resolution](#input-video-resolution)
   - [Time-synced Input Videos](#time-synced-input-videos)
-  - [Ground Truth Directory Structure](#ground-truth-directory-structure)
 - [License](#license)
   - [Repository Licenses](#repository-licenses)
   - [Proprietary Container Notices](#proprietary-container-notices-automagiccalib)
@@ -81,6 +48,7 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
 - OS Ubuntu 24.04
 - NVIDIA GPU with hardware encoder (NVENC)
 - NVIDIA driver 590
+- Docker (setup to run without sudo privilege)
 - NVIDIA container toolkit (see [NVIDIA DeepStream Docker Prerequisites](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_docker_containers.html#prerequisites))
 
 ### NGC Setup
@@ -124,8 +92,8 @@ HOST_IP=<your_host_ip>
 #### Set Directory Permissions
 The `projects` and `models` directories must be owned by UID/GID 1000 for the containers to read/write properly.
 ```bash
-chown 1000:1000 -R projects
-chown 1000:1000 -R models
+sudo chown 1000:1000 -R projects
+sudo chown 1000:1000 -R models
 ```
 
 #### Launch Services
@@ -302,7 +270,7 @@ If ground truth is already uploaded, the button changes to **Delete Ground Truth
 The layout image is required and represents the top-down view or map of your surveillance area.
 
 **Requirements**
-- **Format**: PNG, JPG, or JPEG
+- **Format**: PNG
 - **Content**: Bird's eye view map or layout diagram
 - **Recommended**: High resolution for better accuracy
 
@@ -1133,9 +1101,6 @@ Video files' resolution should be 1920x1080.
 
 ## Time-synced Input Videos:
 Input video files from all cameras must be synchronized
-
-## Ground Truth Directory Structure:
-When providing ground truth data for evaluation, the it must follow this specific naming convention:
 
 
 # License
