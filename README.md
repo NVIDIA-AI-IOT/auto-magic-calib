@@ -139,7 +139,7 @@ Now you're ready to start the calibration process.
 
 
 To try real world case, we have another sample data file `auto-magic-calib/assets/nv_warehouse_032326.zip`. The sample folder includes 4 different files.
-It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](###Configuring Settings)
+It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](#configuring-settings)
 
 In case you want to try your own dataset, please verify requirements (files, directories, formats) explained in [Assumptions](#assumptions) section.
 
