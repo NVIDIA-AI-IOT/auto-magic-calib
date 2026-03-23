@@ -115,7 +115,7 @@ docker compose down
 ```
 
 ### Sample Data Setup
-Unzip the compressed sample data file under `auto-magic-calib/assets`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
+Unzip the compressed sample data file `auto-magic-calib/assets/sdg_08_2_sample_data_010926.zip`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
 1. Input video files
 2. Ground truth data
 3. BirdEyeView map image
@@ -136,6 +136,10 @@ Unzip the compressed sample data file under `auto-magic-calib/assets`. The sampl
 ```
 
 Now you're ready to start the calibration process.
+
+
+To try real world case, we have another sample data file `auto-magic-calib/assets/nv_warehouse_032326.zip`. The sample folder includes 4 different files.
+It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](###Configuring Settings)
 
 In case you want to try your own dataset, please verify requirements (files, directories, formats) explained in [Assumptions](#assumptions) section.
 
