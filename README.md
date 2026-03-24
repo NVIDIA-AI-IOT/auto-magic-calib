@@ -82,6 +82,8 @@ Optionally you can downlad VGGT model for model based calibration
 
 Download the VGGT commercial model from [HuggingFace](https://huggingface.co/facebook/VGGT-1B-Commercial). Downloaded model must be copied to appropriate model directory as mentioned below.
 
+> **Note:** You need to sign up for a HuggingFace account and accept the model license to download.
+
 #### Configure Environment Variables
 Edit the `compose/.env` file to set the required environment variables.
 
