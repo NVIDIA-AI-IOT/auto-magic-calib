@@ -80,7 +80,7 @@ cd auto-magic-calib
 #### Download and set up VGGT model
 Optionally you can downlad VGGT model for model based calibration
 
-Download the VGGT commercial model from [HuggingFace](https://huggingface.co/facebook/VGGT-1B-Commercial).
+Download the VGGT commercial model from [HuggingFace](https://huggingface.co/facebook/VGGT-1B-Commercial). Downloaded model must be copied to appropriate model directory as mentioned below.
 
 #### Configure Environment Variables
 Edit the `compose/.env` file to set the required environment variables.
