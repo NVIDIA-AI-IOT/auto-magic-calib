@@ -78,7 +78,7 @@ cd auto-magic-calib
 ```
 
 #### Download and set up VGGT model
-Optionally you can downlad VGGT model for model based calibration
+Optionally you can download VGGT model for model based calibration
 
 Download the VGGT commercial model from [HuggingFace](https://huggingface.co/facebook/VGGT-1B-Commercial). Downloaded model must be copied to appropriate model directory as mentioned below.
 
