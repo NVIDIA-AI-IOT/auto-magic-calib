@@ -1,9 +1,10 @@
 # AutoMagicCalib
 
-AutoMagicCalib (AMC) is an automated calibration tool that estimates both intrinsic and extrinsic camera parameters for single-camera and multi-camera systems. It provides camera projection matrices and lens distortion coefficients essential for accurate 3D reconstruction and multi-view applications.
+AutoMagicCalib (AMC) is an automated calibration tool that estimates both intrinsic and extrinsic camera parameters for multi-camera systems. It provides camera projection matrices and lens distortion coefficients essential for accurate 3D reconstruction and multi-view applications.
 
 AMC eliminates the need for traditional calibration patterns (like checkerboards) by using tracked moving objects in the scene as natural features for calibration. It leverages DeepStream's object detection and tracking capabilities to identify and follow objects (particularly people) across frames, then analyzes these trajectories across camera views to automatically derive camera parameters from regular operational footage. This approach enables calibration without interrupting normal operations, allows retroactive calibration using archived footage, and performs calibration in the actual deployment environment.
 
+The service supports both a geometry-based approach (AMC) using object trajectories and geometric relationships, and a model-based approach (VGGT) that leverages learned models for higher accuracy and robustness.
 
 ## Features
 - Estimate camera lens distortion parameter (k1)
@@ -23,35 +24,27 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
 - [Quick Start](#quick-start)
   - [System Requirements](#system-requirements)
   - [NGC Setup](#ngc-setup)
-  - [Scripts Setup](#scripts-setup)
+  - [Project Setup](#project-setup)
   - [Sample Data Setup](#sample-data-setup)
-- [Launch End-to-End Pipeline](#launch-end-to-end-pipeline)
-  - [Use Case 1: Calibration with Ground Truth Data, with Quantitative/Qualitative Evaluation](#use-case-1-calibration-with-ground-truth-data-with-quantitativequalitative-evaluation)
-  - [Use Case 2: Calibration without Ground Truth Data, with Qualitative Evaluation](#use-case-2-calibration-without-ground-truth-data-with-qualitative-evaluation)
-  - [Processing Time](#processing-time)
-  - [Command Line Arguments](#command-line-arguments)
-- [Output Files](#output-files)
-  - [Output Structure Example](#output-structure-example)
-  - [Single-View (SV) Calibration Results](#single-view-sv-calibration-results)
-  - [Multi-View (MV) Calibration Results](#multi-view-mv-calibration-results)
-  - [Evaluation Results](#evaluation-results-evaluation---if-ground-truth-provided)
-  - [Trajectory-Only Visualization Results](#trajectory-only-visualization-results)
-  - [End-to-End (E2E) Pipeline Summary](#end-to-end-e2e-pipeline-summary)
-- [Format Conversion for Downstream Applications: MV3DT Use Case](#format-conversion-for-downstream-applications-mv3dt-use-case)
-  - [Why Format Conversion is Needed](#why-format-conversion-is-needed)
-  - [MV3DT Format Conversion](#mv3dt-format-conversion)
-  - [Step-by-step Guide to Run MV3DT with Converted Calibration Files](#step-by-step-guide-to-run-mv3dt-with-converted-calibration-files)
-  - [Adapting for Other Applications](#adapting-for-other-applications)
-- [Manual Alignment](#manual-alignment)
+- [Calibration Workflow (UI)](#calibration-workflow-ui)
+  - [Step 1: Project Setup](#step-1-project-setup)
+  - [Step 2: Video Configuration](#step-2-video-configuration)
+  - [Step 3: Parameters](#step-3-parameters)
+  - [Step 4: Manual Alignment](#step-4-manual-alignment)
+  - [Step 5: Execute Calibration](#step-5-execute-calibration)
+  - [Step 6: Results](#step-6-results)
 - [Assumptions](#assumptions)
-  - [Input Video Naming Convention](#input-video-naming-convention)
+  - [Input Video Contents](#input-video-contents)
   - [Input Video Resolution](#input-video-resolution)
   - [Time-synced Input Videos](#time-synced-input-videos)
-  - [Ground Truth Directory Structure](#ground-truth-directory-structure)
-  - [Layout and Alignment Files](#layout-and-alignment-files)
-  - [Camera Configuration](#camera-configuration)
-  - [File Structure Requirements](#file-structure-requirements)
+- [Custom Dataset](#custom-dataset)
+  - [Guidelines for Input Videos](#guidelines-for-input-videos-to-achieve-optimal-calibration-results)
+  - [Ground Truth Data Format](#ground-truth-data-format)
+    - [calibration.json](#calibrationjson)
+    - [ground\_truth.json](#ground_truthjson)
 - [License](#license)
+  - [Repository Licenses](#repository-licenses)
+  - [Proprietary Container Notices](#proprietary-container-notices-automagiccalib-and-automagiccalibui)
 
 <br><br>
 # Quick Start
@@ -60,12 +53,12 @@ AMC eliminates the need for traditional calibration patterns (like checkerboards
 - x86_64 system
 - OS Ubuntu 24.04
 - NVIDIA GPU with hardware encoder (NVENC)
-- NVIDIA driver 570
+- NVIDIA driver 590
 - Docker (setup to run without sudo privilege)
 - NVIDIA container toolkit (see [NVIDIA DeepStream Docker Prerequisites](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_docker_containers.html#prerequisites))
 
 ### NGC Setup
-This step is needed to pull AutoMagicCalib and DeepStream docker images.
+This step is needed to pull AutoMagicCalib docker images.
 1. Visit NGC sign in page, enter your email address and click Next, or Create an Account
 2. Choose your Organization/Team
 3. Generate an API key following the instructions
@@ -76,769 +69,1295 @@ Username: "$oauthtoken"
 Password: "YOUR_NGC_API_KEY"
 ```
 
-### Scripts Setup
-Clone the repo to your local directory, then run the setup script to prepare required resources. Docker images will be pulled automatically.
+### Project Setup
+Clone the repo to your local directory.
 ```bash
 # clone the repo
-cd auto-magic-calib   # or auto-magic-calib-dev (if dev repo)
-git submodule update --init --recursive
-git lfs pull
-cd scripts
-bash setup.sh 
+git clone https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git
+cd auto-magic-calib
 ```
 
-If the setup is successful, the sample directory structure should look like this:
-```
-~/auto-magic-calib
-├── configs
-│   ├── config_AutoMagicCalib
-│   │   ├── camera_matrix_config.yaml
-│   │   ├── eval_config.yaml
-│   │   ├── mv_amc_config.yaml
-│   │   ├── preprocess_config.yaml
-│   │   ├── rectification_config.yaml
-│   │   └── sv_amc_config.yaml
-│   └── config_DeepStream
-│       ├── config_3d.yaml
-│       ├── config_deepstream_2d_resnet.txt
-│       ├── config_deepstream_2d_transformer.txt
-│       ├── config_deepstream_3d_resnet.txt
-│       ├── config_deepstream_3d_transformer.txt
-│       ├── config_pgie_resnet34.txt
-│       ├── config_pgie_transformer.txt
-│       ├── config_tracker_resnet34_3d.yaml
-│       ├── config_tracker_resnet34.yaml
-│       └── config_tracker_transformer.yaml
-├── models
-│   ├── custom_parser
-│   │   ├── libnvds_infercustomparser_tao.so
-│   │   ├── Makefile
-│   │   └── nvdsinfer_custombboxparser_tao.cpp
-│   ├── labels_peoplenet_resnet34.txt
-│   ├── labels_peoplenet_transformer.txt
-│   ├── peoplenet_transformer_v2.onnx
-│   ├── resnet34_peoplenet_int8.etlt
-│   ├── resnet34_peoplenet_int8.txt
-│   └── resnet50_market1501_aicity156.onnx
-├── ngc_download
-│   └── peoplenet_deployable_quantized.zip
-├── assets
-│   └── sdg_08_2_sample_data_091025.zip
-└── scripts
-    ├── convert_det2kitti.sh
-    ├── kittiDetect2mot_4_viz.sh
-    ├── launch_AutoMagicCalib.sh
-    ├── launch_ConvertToMv3dt.sh
-    ├── launch_EndToEndCalib.sh
-    ├── launch_Evaluation.sh
-    ├── launch_MultiViewCalib.sh
-    ├── launch_Visualization.sh
-    ├── run_2d.sh
-    ├── run_3d.sh
-    └── setup.sh
-```
+#### Download and set up VGGT model
+Optionally you can download VGGT model for model based calibration
 
-Also verify docker images are available:
+Download the VGGT commercial model from [HuggingFace](https://huggingface.co/facebook/VGGT-1B-Commercial). Downloaded model must be copied to appropriate model directory as mentioned below.
+
+> **Note:** You need to sign up for a HuggingFace account and accept the model license to download.
+
+#### Configure Environment Variables
+Edit the `compose/.env` file to set the required environment variables.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `HOST_IP` | **Yes** | — | IP address of the host machine |
+| `AUTO_MAGIC_CALIB_MS_PORT` | No | `8000` | Port for the microservice API |
+| `AUTO_MAGIC_CALIB_UI_PORT` | No | `5000` | Port for the web UI |
+| `PROJECT_DIR` | No | `../../projects` | Path to the projects directory |
+| `MODEL_DIR` | No | `../../models` | Path to the models directory |
+
+If you want to enable VGGT, VGGT model should be copied inside $MODEL_DIR/vggt/
+
 ```bash
-docker images 
-# Should show:
-# nvcr.io/nvidia/auto-magic-calib:1.0                                    1.0
-# nvcr.io/nvidia/deepstream                                              8.0-triton-multiarch
+# At minimum, set HOST_IP in compose/.env
+HOST_IP=<your_host_ip>
+```
+
+#### Set Directory Permissions
+The `projects` and `models` directories must be owned by UID/GID 1000 for the containers to read/write properly.
+```bash
+sudo chown 1000:1000 -R projects
+sudo chown 1000:1000 -R models
+```
+
+#### Launch Services
+Start all services using Docker Compose. Container images will be pulled automatically on the first run.
+```bash
+cd compose
+docker compose up -d
+```
+The microservice will be available at `http://<HOST_IP>:<AUTO_MAGIC_CALIB_MS_PORT>` (default port 8000) and the UI at `http://<HOST_IP>:<AUTO_MAGIC_CALIB_UI_PORT>` (default port 5000).
+
+To stop the running containers,
+```
+docker compose down
 ```
 
 ### Sample Data Setup
-Unzip the compressed sample data file under `auto-magic-calib/assets`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
+Unzip the compressed sample data file `auto-magic-calib/assets/sdg_08_2_sample_data_010926.zip`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
 1. Input video files
 2. Ground truth data
 3. BirdEyeView map image
 4. Pre-calibrated transform for BirdEyeView map
 
 ```
-~/auto-magic-calib/assets/sdg_08_2_sample_data_091025
-├── cam_00.mp4                  # Input video files
-├── cam_01.mp4                  
-├── cam_02.mp4                  
-├── cam_03.mp4                  
-├── manual_adjustment/
-│   ├── layout.png              # BirdEyeView map image required for visualization
-│   └── alignment_data.json     # Pre-calibrated transform from `cam_00` reference frame to BirdEyeView map image 
-├── _World_Cameras_Camera_00/   # Ground truth data (camera info, extrinsics, object trajectories)
-│   ├── camera_params/
-│   └── object_detection/
-├── _World_Cameras_Camera_01/
-│   ├── camera_params/
-│   └── object_detection/
-├── _World_Cameras_Camera_02/
-│   ├── camera_params/
-│   └── object_detection/
-└── _World_Cameras_Camera_03/
-    ├── camera_params/
-    └── object_detection/
+~/auto-magic-calib/assets/sdg_08_2_sample_data_010926.zip
+├── alignment_data
+│   ├── alignment_data.json     # Pre-calibrated transform from `cam_00` reference frame to BirdEyeView map image 
+│   └── layout.png              # BirdEyeView map image required for visualization
+├── GT.zip                      # Ground truth data (camera info, extrinsics, object trajectories)
+└── videos                      # Input video files
+    ├── cam_00.mp4
+    ├── cam_01.mp4
+    ├── cam_02.mp4
+    └── cam_03.mp4
+
 ```
 
 Now you're ready to start the calibration process.
 
+
+To try real world case, we have another sample data file `auto-magic-calib/assets/nv_warehouse_032326.zip`. The sample folder includes 4 different files.
+It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](#configuring-settings)
+
 In case you want to try your own dataset, please verify requirements (files, directories, formats) explained in [Assumptions](#assumptions) section.
 
-<br><br>
-#  Launch End-to-End Pipeline
 
-This script runs a complete calibration pipeline that includes single-view calibration, multi-view calibration, and **optional** evaluation.
-The pipeline supports two main use case scenarios:
+# Calibration Workflow (UI)
 
-### **Use Case 1: Calibration with Ground Truth Data, with Quantitative/Qualitative Evaluation**
-Use when you have ground truth data and layout map for comprehensive evaluation.
+Once the microservice and UI containers are running, open your browser and navigate to `http://<HOST_IP>:<AUTO_MAGIC_CALIB_UI_PORT>` (default port `5000`).
 
-> **Command:**
-> ```bash
-> bash launch_EndToEndCalib.sh -v <video_dir> -o <output_base_dir> -g <groundtruth_dir> -l <layout_image_path> -f <focal_lengths>
-> ```
-> 
-> The provided data includes pre-calibrated alignment transform (`alignment_data.json`), so manual alignment GUI won't pop up.
-> To try out your own [Manual Alignment](#manual-alignment), remove the json file before running the `launch_EndToEndCalib` command below.
-> ```bash
-> rm ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/manual_adjustment/alignment_data.json
-> ```
->
-> **Sample Command:**
-> ```bash
-> cd auto-magic-calib/scripts
-> bash launch_EndToEndCalib.sh -v ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -g ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -l ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/manual_adjustment/layout.png -f "1269.01, 1099.50, 1099.50, 1099.50"
-> ```
->
-> **Pipeline Steps:**
-> 1. **Single-View Calibration** → Individual camera calibration
-> 2. **Multi-View Calibration** → Bundle adjustment and global optimization across cameras
-> 3. **Manual Alignment** → Layout alignment. Interactive GUI pops up only if `alignment_data.json` doesn’t exist under the specified -l <layout_image_path>.
-> 4. **Evaluation and Visualization** → Accuracy metrics against ground truth. Trajectories overlay image onto BirdEyeView map.
-> 
-> **Key Output Files:**
-> - Final refined camera parameters (most important): `multi_view_results/BA_output/results_ba/refined/camInfo_XX.yaml` - Complete intrinsic and extrinsic parameters after bundle adjustment
-> - Single-view intrinsic parameters: `single_view_results/cam_XX/camInfo_hyper_XX.yaml` (original format)
-> - Single-view intrinsic parameters (OpenCV): `single_view_results/cam_XX/camInfo_hyper_XX_opencv.yaml` (principal points at center)
-> - Evaluation metrics and visualizations (`multi_view_results/evaluation/`)
-> - ... (for complete output details, see the [Output Files](#output-files) section)
->
-> **Why Manual Alignment?**
->
-> Even when ground truth data is provided, manual alignment is still required because the ground truth coordinate system and the layout map coordinate system are different. The layout image is a 2D representation, and the transform calculated during manual alignment establishes a custom mapping between the estimated camera coordinate system (with cam_00 as reference) and the 2D layout map. This transform is essential for visualization and also some downstream applications (such as MV3DT) that need to relate camera views to the layout.
->
-> You can verify calibration output in [Output Files](#output-files).
->
-> Or, proceed to [Format Conversion for Downstream Applications: MV3DT Use Case](#format-conversion-for-downstream-applications-mv3dt-use-case) to see how AMC calibration can be used by downstream applications.
+The UI presents a **6-step stepper workflow**. Each step validates its inputs before allowing you to proceed to the next.
 
-### **Processing Time** ### 
-Total processing time varies based on hardware specifications, video resolution, file count, and scene complexity. For the provided sample data on an RTX6000 system, expect approximately:
-- **Single-view calibration**: ~10 minutes per camera (40 minutes total for 4 cameras)
-- **Multi-view calibration**: ~10 minutes for bundle adjustment and optimization
+---
 
-### **Use Case 2: Calibration without Ground Truth Data, with Qualitative Evaluation**
-Use when you have layout map for visualization.
+## Step 1: Project Setup
 
-> **Command:**
-> ```bash
-> bash launch_EndToEndCalib.sh -v <video_dir> -o <output_base_dir> -f <focal_lengths>
-> ```
-> **Sample Command:**
-> ```bash
-> cd auto-magic-calib/scripts
-> bash launch_EndToEndCalib.sh -v ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025 -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -f "1269.01, 1099.50, 1099.50, 1099.50"
-> ```
-> 
-> **Pipeline Steps:**
-> 1. **Single-View Calibration** → Individual camera calibration
-> 2. **Multi-View Calibration** → Bundle adjustment and global optimization across cameras
-> 
-> **Key Output Files:**
-> - Calibration results (`camInfo_*.yaml` files)
-> - 3D trajectory data (`trajDump_Stream_0_3d.txt`)
-> - Bundle adjustment results (`BA_output/results_ba/refined/`)
-> - ... (for complete output details, see the [Output Files](#output-files) section)
-> 
-> **Trajectory-Only Visualization (Optional):**
->
-> User may still want trajectory visualization for sanity check even without ground truth. Then the user will need to provide a map, and an alginment transform to the map. The following launch script encapsulates both manual alignment and visualization. It'll pop up the interactive GUI to the user.
-> 1. Set `anchor: "layout"` in `configs/config_AutoMagicCalib/eval_config.yaml`
-> 2. Run `launch_Visualization.sh` as follows
-> 
-> ```bash
-> bash launch_Visualization.sh -i ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output/single_view_results -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -l ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/manual_adjustment/layout.png
-> ```
-> 
-> Then the pair-wise trajectory overlay images are generated in same folder as `layout.png`.
-> ```
-> ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output/multi_view_results/manual_adjustment/
-> ├── alignment_data.json
-> ├── layout.png
-> ├── overlay_img_00.png
-> ├── overlay_img_01.png
-> └── overlay_img_02.png
-> ```
->
-> You can verify calibration output (including visualization examples) in [Output Files](#output-files).
->
-> Or, proceed to [Format Conversion for Downstream Applications: MV3DT Use Case](#format-conversion-for-downstream-applications-mv3dt-use-case) to see how AMC calibration can be used by downstream applications.
+The Project Setup step allows you to create and manage calibration projects.
 
-### **Command Line Arguments**
+![Project Setup Step](resources/images/vss-autocalib-ui/project_setup_step.jpg)
 
-> **Required:**
-> - `-v <video_dir>`: Directory containing input video files (*.mp4)
-> - `-o <output_base_dir>`: Base directory for all outputs
-> 
-> **Optional:**
-> - `-g <groundtruth_dir>`: Ground truth directory for evaluation
-> - `-l <layout_image_path>`: Path to layout image file for manual alignment
-> - `-d <detector_type>`: Detector type: 'resnet' or 'transformer' (default: 'resnet')
-> - `-f <focal_lengths>`: Ground truth focal lengths comma-separated (overrides GeoCalib estimates)
-> - `--no-plot`: Disable plotting for bundle adjustment
+### Creating a New Project
 
-<br><br>
-# Output Files
+1. Enter a project name in the text field
+   - **Requirements**: 3–50 characters
+   - **Example**: `warehouse_cam_2024`, `parking_lot_north`
+2. Click the **Create** button
+3. The new project appears in the "Existing Projects" list below
 
-### **Output Structure Example**
-Here we show the output directory structure and some key output files after running the End-to-End script successfully on propvided data.
+![Create New Project](resources/images/vss-autocalib-ui/create_new_project.jpg)
 
-```
-output_base_dir/
-├── single_view_results/
-│   ├── cam_00/                          # Results for first camera
-│   │   ├── camInfo_hyper_00.yaml        # Camera parameters
-│   │   ├── camInfo_hyper_00_opencv.yaml # Camera parameters with principal points at center
-│   │   └── trajDump_Stream_0_3d.txt     # 3D trajectory data (required for Multi-View)
-│   └── ...                              # Additional cameras: 01, 02, ...
-└── multi_view_results/                  # Multi-view calibration results
-    ├── cam0_cam1/                       # Pairwise calibration results
-    ├── ...                              # Additional camera pairs: 1_2, 2_3, ...
-    ├── BA_output/                       # Bundle adjustment results
-    │   ├── results_ba/                  # Main bundle adjustment outputs
-    │   │   ├── initial/                 # Initial camera parameters
-    │   │   └── refined/                 # Refined camera parameters
-    │   │   │   ├── camInfo_00.yaml      # Final camera parameters (K, R, T, projection) in {cam0} coordinate
-    │   │   │   └── ...                  # Additional cameras: 01, 02, ...
-    │   ├── results_ba_scaled/           # Scale-adjusted calibration results
-    │   └── results_iterative_ba/        # Iterative refinement outputs
-    ├── evaluation/                      # Evaluation results (if ground truth provided)
-    │   ├── 0_1/                         # Camera pair evaluation
-    │   ├── ...                          # Additional camera pairs: 1_2, 2_3, ...
-    │   ├── est_camera_params_in_world/  # Coordinate-transformed camera parameters to align with the ground truth
-    │   ├── statistics.txt               # L2 dist and error statistics
-    │   ├── transform_cam0_to_map.json   # Transform from {cam0} to provided {map}
-    │   ├── transform_world_to_map.json  # Transform from {world} to provided {map}
-    │   └── <png files>                  # Statistics shown in graphs 
-    └── manual_adjustment/               # Manual layout alignment data.
-```
+**Project Name Validation**
+- ✓ Valid: `warehouse_calibration`, `site_01`, `parking-lot-A`
+- ✗ Invalid: `ab` (too short)
 
-### Single-View (SV) Calibration Results
-> Each camera produces results in its own directory (`cam_XX/`) with the following key outputs:
-> 
-> ### Camera Parameter Files
-> - `camInfo_hyper_XX.yaml`: Camera projection matrix (3x4) with intrinsic and extrinsic parameters
-> - `camInfo_hyper_XX_opencv.yaml`: Camera parameters with principal points located at the image center (OpenCV format)
-> - `distortion.yaml`: Lens distortion parameters (k1 coefficient)
-> - `rectified.mp4`: Video with lens distortion corrected
-> - `background.jpg`: Extracted background image used for calibration
-> - `config_sv_amc.yaml`: Single-view configuration used for this camera
-> 
-> ### 3D Tracking Results
-> - `trajDump_Stream_0_3d.txt`: 3D trajectory data for tracked humans (required for Multi-View calibration)
+### Selecting a Project
 
-### Multi-View (MV) Calibration Results
-> ### Pairwise Calibration Results (`camX_camY/`)
-> Each camera pair produces:
-> - `calib_results.json`: Essential matrix estimation and relative pose parameters
-> - `3d_point_alignment.png`: 3D alignment diagnostics
-> - `3d_points_in_sv3dt.png`: 3D points visualization in single-view coordinate system
-> 
-> ### Bundle Adjustment Results (`BA_output/results_ba/`)
-> - `initial/`: Initial camera parameters before optimization
->   - `camInfo_XX.yaml`: Initial camera parameters for each camera
-> - `refined/`: **Refined camera parameters after optimization (primary output)**
->   - `camInfo_XX.yaml`: Optimized intrinsic and extrinsic parameters for each camera. Reference coordinate frame is `{cam_00}`.
->
-> *Note: The values in `refined/camInfo_XX.yaml` is up-to-scale.*
->
-> ### Scaled Bundle Adjustment Results (`BA_output/results_ba_scaled/`)
-> - `camInfo_XX.yaml`: Bundle Adjustment Results converted into metric scale using the user-provided info
->
-> ### Example Camera Parameter File Format
-> The refined camera parameter files from provided sample data (`BA_output/results_ba/refined/camInfo_00.yaml`) contain:
-> 
-> ```yaml
-> K:                         # 3x3 intrinsic matrix
-> - - 1208.3875566209306
->   - 0.0
->   - 960.0
-> - - 0.0
->   - 1208.3875566209306
->   - 540.0
-> - - 0.0
->   - 0.0
->   - 1.0
-> R:                        # 3x3 rotation matrix
-> - - 1.0
->   - 0.0
->   - 0.0
-> - - 0.0
->   - 1.0
->   - 0.0
-> - - 0.0
->   - 0.0
->   - 1.0
-> projectionMatrix_3x4:     # 3x4 projection matrix (K * [R|t])
-> - - 1208.3875566209306
->   - 0.0
->   - 960.0
->   - 0.0
-> - - 0.0
->   - 1208.3875566209306
->   - 540.0
->   - 0.0
-> - - 0.0
->   - 0.0
->   - 1.0
->   - 0.0
-> t:                        # 3x1 translation vector
-> - - 0.0
-> - - 0.0
-> - - 0.0
-> ```
-> 
-> **Note:** The actual numbers may look different from the optimization step is not deterministic.
+1. Browse the list of existing projects
+2. Click the **Select** button on the desired project card
+3. The selected project is highlighted with a green border and checkmark
+4. Project information is displayed at the bottom: "Project 'name' selected"
 
-### Evaluation Results (`evaluation/` - if ground truth provided)
-> When ground truth data is available, AMC provides comprehensive evaluation capabilities to validate calibration quality:
-> 
-> ### Transformed Camera Parameters (`est_camera_params_in_world/`)
-> 
-> During evaluation, the system generates coordinate-transformed camera parameters to align with the ground truth coordinate system:
-> - **`camInfo_XX.yaml`**: Camera parameters transformed to match ground truth coordinate frame
-> - These files contain the same camera intrinsics but with extrinsics adjusted for proper comparison with ground truth data
-> - Used internally for accurate evaluation metrics calculation
-> 
-> ### Understanding Evaluation Metrics
-> 
-> **Quantitative Metrics (`evaluation/statistics.txt`):**
-> - **L2 Distance**: Measures 3D reconstruction accuracy in real-world units (meters). Lower values indicate better calibration accuracy.
-> - **Reprojection Errors**: Measure how well 3D points project back to 2D images, reported in pixels. Lower pixel errors indicate more precise calibration.
-> 
-> **Example Statistics Output:**
-> ```
-> Average L2 distance: 0.34 (meters)
-> Standard deviation of L2 distance: 0.09 (meters)
-> Max L2 distance: 0.57 (meters)
-> Min L2 distance: 0.22 (meters)
-> Average reprojection error 0: 1.43 (pixels)
-> Standard deviation of reprojection error 0: 0.92 (pixels)
-> Max reprojection error 0: 7.68 (pixels)
-> Min reprojection error 0: 0.00 (pixels)
-> Average reprojection error 1: 1.95 (pixels)
-> Standard deviation of reprojection error 1: 2.10 (pixels)
-> Max reprojection error 1: 15.08 (pixels)
-> Min reprojection error 1: 0.00 (pixels)
-> ```
-> 
-> **Visual Analysis:**
-> - **Box Plots**: Compare performance across different camera pairs, showing median accuracy and consistency. Consistent, low values across pairs indicate good overall calibration.
-> - **Error Distribution Histograms**: Reveal the distribution of errors - good calibrations show narrow peaks near zero with few outliers.
-> 
-> **Example Evaluation Plots:**
-> 
-> <div align="center">
-> <img src="resources/images/all_results_l2_dist.png" alt="L2 Distance Distribution" width="60%">
-> </div>
-> 
-> <div align="center">
-> <img src="resources/images/combined_histograms.png" alt="Error Distribution Histograms" width="60%">
-> </div>
-> 
-> *Top: L2 distance distribution showing 3D reconstruction accuracy across camera pairs. Bottom: Combined error histograms showing reprojection error distributions - narrow peaks near zero indicate good calibration quality.*
-> 
-> #### Per-Camera-Pair Evaluation (`X_Y/` directories)
-> Each camera pair (e.g., `0_1/`, `1_2/`, `2_3/`) contains:
-> - **`statistics.txt`**: Statistical summary of calibration accuracy for the camera pair
-> - **`l2_dist.csv`**: L2 distance measurements between estimated and ground truth 3D points
-> - **`reproj_error0.csv`**: Reprojection errors for the first camera in the pair
-> - **`reproj_error1.csv`**: Reprojection errors for the second camera in the pair
-> - **`3d_points.png`**: 3D point cloud visualization comparing estimated vs ground truth
-> - **`combined_histograms.png`**: Error distribution histograms for the camera pair
-> - **`res_imgs/`**: Directory containing detailed result visualization images
-> 
-> #### Aggregate Evaluation Results (cross-camera statistics)
-> - **`all_results.csv`**: Combined calibration accuracy results across all camera pairs
-> - **`statistics.txt`**: Overall statistical summary across all camera pair evaluations
-> - **`all_results_l2_dist.png`**: Aggregated L2 distance distribution plot across all pairs
-> - **`all_results_reproj_error0.png`**: Combined reprojection error plot for all first cameras
-> - **`all_results_reproj_error1.png`**: Combined reprojection error plot for all second cameras
-> - **`combined_histograms.png`**: Overall error distribution across all camera pairs
-> - **`results_layout_3d_points.png`**: Layout visualization with all 3D points overlaid
-> 
-> #### Trajectory Visualization With Ground Truth
-> 
-> <div align="center">
-> <img src="resources/images/results_layout_3d_points.png" alt="Trajectory Overlay Visualization" width="45%">
-> </div>
-> 
-> *Bird's-eye view trajectory overlay showing ground truth (white dots) vs estimated positions (colored dots) from different camera pairs on the actual floor layout.*
-> 
-> The bird's-eye view trajectory overlay (`results_layout_3d_points.png`) provides immediate visual validation:
-> - **White dots**: Ground truth positions where people actually walked
-> - **Colored dots**: Estimated positions from different camera pairs (each color represents a different pair)
-> - **Accuracy indicator**: The closer the colored dots are to the white reference points, the better your calibration accuracy
-> 
-> This visualization gives you an immediate visual sense of how well your camera network is performing in real-world scenarios.
-> 
-> **Interpreting Results:**
-> This comprehensive evaluation suite helps you validate calibration quality and identify potential issues before deploying your system. Look for:
-> - Low L2 distances (< 0.5 meters typically indicates good accuracy)
-> - Low reprojection errors (< 5 pixels typically indicates good precision)  
-> - Tight clustering in trajectory overlays
-> - Consistent performance across all camera pairs
+![Select Project](resources/images/vss-autocalib-ui/select_project.jpg)
 
-### Trajectory-Only Visualization Results
-> When using `launch_Visualization.sh` for use case 2, the following visualization files are generated in the `manual_adjustment/` directory:
-> 
-> ### Trajectory Overlay Images
-> - **`overlay_img_00.png`**: Trajectory reconstructed from the first camera pair
-> - **`overlay_img_01.png`**: Trajectory reconstructed from the first and second camera pairs 
-> - **`overlay_img_02.png`**: Trajectory reconstructed from the first, second, and third camera pairs
-> - **`alignment_data.json`**: Manual alignment transformation data
-> - **`layout.png`**: Original layout image used for visualization
-> 
-> <div align="center">
-> <img src="resources/images/overlay_img_00.png" alt="Trajectory Overlay Pair 1" width="30%">
-> <img src="resources/images/overlay_img_01.png" alt="Trajectory Overlay Pair 1, 2" width="30%">
-> <img src="resources/images/overlay_img_02.png" alt="Trajectory Overlay Pair 1, 2, 3" width="30%">
-> </div>
-> 
-> *Example trajectory overlay images showing detected human trajectories projected onto the bird's eye view layout map for visual sanity check.*
-> 
-> These visualizations help you:
-> - Verify that calibration results make sense spatially
-> - Understand coverage areas of each camera
-> - Validate trajectory detection and projection accuracy
-> - Assess overall system performance without ground truth data
+**Project Card Information**
 
-### Additional Multi-View Files
-- `manual_adjustment/`: Manual layout alignment data (if manual alignment performed)
-- `tracklet_to_global.json`: Cross-camera tracklet ID correspondences
-- `sorted_tracklet_matches.json`: Organized tracklet matching results for all camera pairs
+Each project card displays:
+- **Project Name**: The name you assigned
+- **Project ID**: Unique identifier (UUID)
+- **Project State**: Current status badge
+  - `INIT` (gray): Initial state, files not yet uploaded
+  - `READY` (green): Ready for calibration
+  - `RUNNING` (orange): Calibration in progress
+  - `COMPLETED` (green): Calibration finished successfully
+  - `ERROR` (red): Calibration failed
+- **Video Count**: Number of uploaded video files
+- **File Status**: Checkmarks for uploaded files
+  - GT (Ground Truth): ✓ or ✗
+  - Layout: ✓ or ✗
+  - Alignment: ✓ or ✗
 
-## End-to-End (E2E) Pipeline Summary
-The complete pipeline produces a hierarchical output structure:
-1. **Single-View Stage**: Individual camera calibration and 3D tracking
-2. **Multi-View Stage**: Pairwise calibration, bundle adjustment, and global optimization
-3. **Evaluation Stage**: Accuracy assessment against ground truth (optional)
+### Managing Projects
 
-Key files for downstream applications:
-- **Final refined camera parameters (most important)**: `multi_view_results/BA_output/results_ba/refined/camInfo_XX.yaml` - Complete intrinsic and extrinsic parameters after bundle adjustment
-- **Single-view intrinsic parameters**: `single_view_results/cam_XX/camInfo_hyper_XX.yaml` (original format)
-- **Single-view intrinsic parameters (OpenCV)**: `single_view_results/cam_XX/camInfo_hyper_XX_opencv.yaml` (principal points at center)
+**Refreshing the Project List**
 
+Click the **Refresh** button in the top-right corner to reload the project list from the server.
 
-<br><br>
-# Format Conversion for Downstream Applications: MV3DT Use Case
+**Deleting a Project**
 
-AutoMagicCalib results can be converted to formats compatible with various downstream applications. This section demonstrates format conversion using MV3DT (Multi-View 3D Tracking) as an example.
+1. Click the trash icon (🗑️) on the project card
+2. Confirm deletion in the dialog that appears
+3. The project and all associated data are permanently deleted
 
-Depending on the downstream application requirements, the calibration output format may need modification. Here we present the specific conversion requirements for [MV3DT](https://github.com/NVIDIA-AI-IOT/deepstream_reference_apps/tree/master/deepstream-tracker-3d-multi-view).
+> **Warning:** Deleting a project cannot be undone. Export any important calibration results before deletion.
 
-MV3DT is a distributed, real-time multi-view multi-target 3D tracking framework built for large-scale, calibrated camera networks. With AMC, you can effortlessly tryout MV3DT on your own datasets. This section bridges the format differences, making the calibration files compatible with MV3DT
+---
 
-## Why Format Conversion is Needed
-AMC produces comprehensive calibration results (see [Output Files](#output-files) section for details), but different applications expect different formats:
+## Step 2: Video Configuration
 
-**AMC Output Format:**
-- **Camera parameters**: 3x3 intrinsic matrix (K), 3x3 rotation matrix (R), 3x1 translation vector (t), and 3x4 projection matrix stored separately in YAML files
-- **Coordinate system**: 3D world coordinates with full transformation matrices
-- **File naming**: `camInfo_XX.yaml` format in the refined results directory
+Upload camera videos, layout image, ground truth data, and optional alignment file.
 
-**MV3DT Requirements:**
-- **Camera parameters**: Single vector containing projection matrix in row-major order format for ObjectModelProjector
-- **Object modeling**: Cylinder parameters (height, radius) for human tracking - AMC doesn't include these by default
-- **Layout map**: Expects `map.png` filename (AMC uses `layout.png`)  
-- **Coordinate transform**: 2D-to-2D pixel transformation (AMC outputs 3D transformation matrices)
-- **Transform file**: `transform_world_to_map.json` must be provided (generated by AMC [Use Case 1, evaluation step](#use-case-1-calibration-with-ground-truth-data-with-quantitativequalitative-evaluation))
+![Video Configuration Step](resources/images/vss-autocalib-ui/video_configuration_step.jpg)
 
-## MV3DT Format Conversion
-The `scripts/launch_ConvertToMv3dt.sh` script converts AutoMagicCalib outputs to a format compatible with MV3DT (Multi-View 3D Tracking).
+### Upload Status Overview
 
-The following commands assume that you have followed the [Use Case 1: Calibration with Ground Truth Data, with Quantitative/Qualitative Evaluation](#use-case-1-calibration-with-ground-truth-data-with-quantitativequalitative-evaluation) section to run the end-to-end pipeline and generate the output files.
+At the top of the page, you'll see a status summary showing:
+- **Videos**: Count of uploaded videos (minimum 2 required)
+- **Ground Truth (Optional)**: Upload status
+- **Layout**: Upload status (required)
+- **Alignment (Optional)**: Upload status
 
-When ground truth data is provided during AMC calibration, the conversion routine automatically utilizes the resulting output files to achieve enhanced MV3DT accuracy.
+![Upload Status](resources/images/vss-autocalib-ui/upload_status.jpg)
 
-**Sample Command:**
-```bash
-# Usage:
-#   bash launch_ConvertToMv3dt.sh -i /path/to/AMC/output -o /path/to/output -g  # Include -g flag when ground truth data was used during AMC calibration
-#   bash launch_ConvertToMv3dt.sh -i /path/to/AMC/output -o /path/to/output     # Omit -g flag when ground truth data was not used during AMC calibration
+### Uploading Video Files
 
-bash launch_ConvertToMv3dt.sh -i ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/mv3dt_output -g  # For Use Case 1 (with ground truth data)
+**Requirements**
+- **Minimum**: 2 video files
+- **Formats**: MP4
+- **Required Video Resolution**: 1920×1080
 
-# OR
+**Upload Process**
 
-bash launch_ConvertToMv3dt.sh -i ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/output -o ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/mv3dt_output # For Use Case 2 (without ground truth data)
+1. Click the **Select Videos** button to choose video files from your computer
+2. Selected videos appear in a list where you can reorder them by dragging
+3. Reorder the videos to match your desired camera order (`cam_00`, `cam_01`, etc.)
+4. Click the **Upload** button to upload all selected videos
+5. Wait for the upload progress bar to complete
 
-# expected CLI output:
-#   [done] Wrote camInfo/, map.png, transforms.yml to /auto-magic-calib/output
-```
+![Video Upload](resources/images/vss-autocalib-ui/video_upload.jpg)
 
-### Output Structure
-The conversion generates MV3DT-compatible files:
+**Managing Video Files**
+- **View List**: All selected videos are listed with their filenames
+- **Reorder**: Drag and drop videos to change their order before uploading
+- **Delete Video**: Click the trash icon (🗑️) next to a video to remove it
+- **Re-upload**: Delete and upload again if needed
 
-```
-output_directory/
-├── camInfo/
-│   ├── camInfo_00.yml          # Camera projection matrices in MV3DT format
-│   ├── camInfo_01.yml
-│   ├── camInfo_02.yml
-│   └── camInfo_03.yml
-├── map.png                     # Copy of layout.png
-└── transforms.yml              # 2D coordinate transformation parameters
-```
+### Uploading Ground Truth Data
 
-The output files from the conversion script is ready to be used in MV3DT. Please refer to the [MV3DT custom dataset guide](https://github.com/NVIDIA-AI-IOT/deepstream_reference_apps/tree/master/deepstream-tracker-3d-multi-view#running-mv3dt-on-custom-datasets) for custom dataset requirements.
+Ground truth data is optional and used for calibration evaluation.
 
-*Note: Different downstream applications may require different conversion scripts depending on their specific input format requirements.*
+**Requirements**
+- **Format**: ZIP file
+- **Content**: Ground truth calibration data
 
-## Step-by-step Guide to Run MV3DT with Converted Calibration Files
-1. Follow the [MV3DT Prerequisites section](https://github.com/NVIDIA-AI-IOT/deepstream_reference_apps/tree/master/deepstream-tracker-3d-multi-view#prerequisites).
-2. Create a new dataset directory named `amc_dataset`, and copy the video files and calibration files to the directory
-  ```bash
-  cd /path/to/deepstream_reference_apps/deepstream-tracker-3d-multi-view
-  mkdir -p datasets/amc_dataset/videos
-  cp ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/*.mp4 datasets/amc_dataset/videos
-  cp -r ~/auto-magic-calib/assets/sdg_08_2_sample_data_091025/mv3dt_output/* datasets/amc_dataset/
-  ```
-3. Prepare a MV3DT launch script for the new dataset
-  ```bash
-  # Copy from a sample launch script
-  cp scripts/test_12cam_ds.sh scripts/test_amc_ds.sh
-  # Only update the dataset and experiment paths
-  sed -i -e 's/mtmc_12cam/amc_dataset/g' -e 's|deepstream/12cam|deepstream/amc|g' scripts/test_amc_ds.sh
-  # Optional, show raw tracking results from all cams in BEV, instead of the aggregated results
-  sed -i -e '/--average-multi-cam/d' scripts/test_amc_ds.sh
-  chmod +x scripts/test_amc_ds.sh
-  ```
-4. Run the MV3DT launch script
-  ```bash
-  ./scripts/test_amc_ds.sh
-  ```
+**Upload Process**
 
-**Example: MV3DT Running with AMC Calibration Results**
-<div align="center">
-<img src="resources/images/MV3DT_ds_viz.png" alt="MV3DT Real-time Tracking with AMC Calibration" width="70%">
-</div>
+1. Click **Upload Ground Truth (Optional)** button
+2. Select your ZIP file
+3. Wait for upload confirmation
+4. Status changes to "Ground truth uploaded ✓"
 
-*MV3DT framework running in real-time using camera calibration parameters generated by AutoMagicCalib. The system performs multi-view 3D tracking across multiple camera feeds, demonstrating successful integration of AMC calibration results with downstream tracking applications.*
+**Deleting Ground Truth**
 
-## Adapting for Other Applications
-For different downstream applications, you may need to create similar conversion scripts that:
+If ground truth is already uploaded, the button changes to **Delete Ground Truth**. Click it to remove the file.
 
-1. Read the refined camera parameters from `multi_view_results/BA_output/results_ba/refined/`
-2. Transform coordinate systems if needed (using transform files from evaluation)
-3. Reformat the data according to the target application's requirements
-4. Generate any additional metadata or configuration files needed
+![Ground Truth Delete](resources/images/vss-autocalib-ui/gt_delete.jpg)
 
-The MV3DT conversion scripts serve as a template for creating converters for other applications.
+### Uploading Layout Image
 
-<br><br>
-# Manual Alignment 
-Once calibration is complete, you might want to visualize the reconstruction 
-results on a BEV(Bird Eye view) map by using the estimated camera parameters. 
-In order to visualize the reconstruction results on the BEV map, we need a 
-transform from the camera 0 coordinate frame to the map. 
-If ground truth data is provided, then the transform is calculated automatically.
-However, the transform should be calculated by a manual alignment step if 
-the ground truth data doesn't exist.  
+The layout image is required and represents the top-down view or map of your surveillance area.
 
-Basically, the manual alignment step is to make the following json file with 
-image coordinates for camera 0 view and camera 1 view, and the BEV map. 
+**Requirements**
+- **Format**: PNG
+- **Content**: Bird's eye view map or layout diagram
+- **Recommended**: High resolution for better accuracy
 
-**alignment_data.json**: manual alignment data
+**Upload Process**
+
+1. Click **Upload Layout** button
+2. Select your image file
+3. Wait for upload confirmation
+4. Status changes to "Layout image uploaded ✓"
+
+**Deleting Layout**
+
+If layout is already uploaded, the button changes to **Delete Layout**. Click it to remove the file.
+
+![Layout Delete](resources/images/vss-autocalib-ui/layout_delete.jpg)
+
+### Uploading Alignment Data
+
+Alignment data is optional at this step. You can either upload a pre-existing alignment file here or create it interactively in Step 4.
+
+**Requirements**
+- **Format**: JSON file
+- **Content**: Alignment point data (4+ point sets)
+
+**Upload Process**
+
+1. Click **Upload Alignment (Optional)** button
+2. Select your JSON file
+3. Wait for upload confirmation
+4. Status changes to "Alignment file uploaded ✓"
+
+**Deleting Alignment**
+
+If alignment is already uploaded, the button changes to **Delete Alignment**. Click it to remove the file.
+
+![Alignment Delete](resources/images/vss-autocalib-ui/alignment_delete.jpg)
+
+### Requirements Note
+
+**Required for Calibration:**
+- At least 2 video files
+- Layout image (PNG)
+- Alignment data (can be created in Manual Alignment step)
+
+**Optional:**
+- Ground truth data (ZIP file) — for evaluation purposes
+
+> You can proceed to the next step even if ground truth and alignment are not uploaded. Alignment can be created interactively in Step 4.
+
+---
+
+## Step 3: Parameters
+
+Configure camera parameters, draw ROIs (Regions of Interest), and define tripwires.
+
+![Parameters Step](resources/images/vss-autocalib-ui/parameters_step.jpg)
+
+### Interface Layout
+
+The Parameters step is divided into two main sections:
+
+**Left Panel (Main Canvas)**
+- Camera selection dropdown
+- Drawing tools toolbar
+- Video frame canvas with annotations
+- Instructions and controls
+
+**Right Panel (Sidebar)**
+- Current annotations list
+- ROI count and details
+- Tripwire lines count
+- Tripwire directions count
+- Focal length configuration
+
+### Camera Selection
+
+1. Select a camera from the dropdown menu at the top
+2. The first frame of the selected video loads on the canvas
+3. Switch between cameras to annotate each one
+
+![Camera Selection](resources/images/vss-autocalib-ui/cam_selection.jpg)
+
+### Drawing Tools
+
+**Available Tools**
+- **Draw ROI**: Create polygonal regions of interest
+- **Draw Tripwire**: Create tripwire lines for counting
+- **Tripwire Direction**: Create directional tripwires with arrows
+- **Show/Hide**: Toggle visibility of annotations
+- **Reset**: Clear all annotations for current camera
+
+![Drawing Tools](resources/images/vss-autocalib-ui/drawing_tools.jpg)
+
+### Drawing ROIs
+
+ROIs define areas of interest for detection and tracking.
+
+**How to Draw**
+
+1. Click the **Draw ROI** button (it becomes highlighted)
+2. Click on the video frame to add points
+3. Add at least 3 points to form a polygon
+4. Finish the ROI by pressing the `F` key
+5. The ROI is automatically saved with a green color
+
+**ROI Features**
+- **Color**: Green (#00ff00)
+- **Minimum Points**: 3
+- **Maximum Points**: Unlimited
+- **Auto-save**: Saved immediately upon completion
+
+![ROI Drawing](resources/images/vss-autocalib-ui/roi_drawing.jpg)
+
+**Editing ROIs**
+- **Delete**: Click the delete button next to the ROI in the right panel
+- **Redraw**: Delete the existing ROI and draw a new one
+
+### Drawing Tripwire Lines
+
+Tripwire lines are used for counting objects crossing a line.
+
+**How to Draw**
+
+1. Click the **Draw Tripwire** button
+2. Click once to set the start point
+3. Click again to set the end point
+4. The tripwire line is automatically saved with a red color
+
+**Tripwire Line Features**
+- **Color**: Red (#ff0000)
+- **Points**: Exactly 2 (start and end)
+- **Auto-save**: Saved immediately upon completion
+- **Use Case**: Bidirectional counting
+
+![Tripwire Line](resources/images/vss-autocalib-ui/tripwire_line.jpg)
+
+### Drawing Tripwire Directions
+
+Tripwire directions are used for unidirectional counting with an arrow indicator.
+
+**How to Draw**
+
+1. Click the **Tripwire Direction** button
+2. Click once to set the start point
+3. Click again to set the end point (direction of arrow)
+4. The tripwire direction is automatically saved with a yellow color and arrow
+
+**Tripwire Direction Features**
+- **Color**: Yellow (#ffff00)
+- **Arrow**: Shows direction from start to end
+- **Points**: Exactly 2 (start and end)
+- **Auto-save**: Saved immediately upon completion
+- **Use Case**: Unidirectional counting (e.g., entry/exit)
+
+![Tripwire Direction](resources/images/vss-autocalib-ui/tripwire_direction.jpg)
+
+### Canvas Controls
+
+**Zoom and Pan**
+- **Scroll Wheel**: Zoom in/out on the canvas
+- **Click + Drag**: Pan around when zoomed in
+- **Show/Hide Button**: Toggle visibility of all annotations
+- **Reset Button**: Clear all annotations for the current camera
+
+**Visual Feedback**
+- **Drawing Mode**: Active tool is highlighted in the toolbar
+- **Cursor**: Changes to crosshair when in drawing mode
+- **Point Markers**: Visible while drawing
+- **Completed Annotations**: Rendered with solid colors
+
+### Annotation List (Right Panel)
+
+The right panel shows all annotations for the currently selected camera.
+
+- **ROIs Section**: Count of completed ROIs; each ROI shown as a green chip with point count; delete button for each
+- **Tripwire Lines Section**: Count of completed tripwire lines; each line shown as a red chip; delete button for each
+- **Tripwire Directions Section**: Count of completed tripwire directions; each direction shown as a yellow chip with arrow; delete button for each
+
+![Annotation List](resources/images/vss-autocalib-ui/annotation_list.jpg)
+
+### Focal Length Configuration
+
+Focal lengths are optional but can improve calibration accuracy.
+
+**Requirements**
+- One value per camera
+- Comma-separated list
+- Positive numbers only
+- Count must match video count
+
+**How to Configure**
+
+1. In the right panel, find the **Focal Length (Optional)** card
+2. Enter focal lengths separated by commas (e.g., `1269.01, 1099.50, 1099.50, 1099.50`)
+3. Click **Save Focal Length** button
+4. Confirmation message appears
+
+**Clearing Focal Lengths**
+
+1. Delete all text from the input field
+2. Click **Save Focal Length**
+3. Focal lengths are cleared from the project
+
+![Focal Length Configuration](resources/images/vss-autocalib-ui/focal_length_configuration.jpg)
+
+### Auto-Save Feature
+
+All annotations (ROIs, tripwires, tripwire directions) are automatically saved to the server as you draw them.
+- No manual save required
+- Instant persistence
+- Per-camera storage
+- Survives page refresh
+
+> The green success message "Note: Annotations are saved automatically as you draw. Proceed to the next step when ready." confirms auto-save is active.
+
+### Configuring Settings
+
+On the Parameters step, you can customize calibration settings before running the pipeline. The settings icon in the top-right corner of the header is **only visible on this step**.
+
+Click the settings icon in the top-right corner to access application settings.
+
+![Settings Dialog](resources/images/vss-autocalib-ui/settings_dialog.jpg)
+
+**Configuration Options**
+- **Option 1: Upload** — upload a pre-configured settings file to apply all parameters at once
+- **Option 2: Manual Configuration** — modify each parameter individually through the settings interface
+
+**Additional Actions**
+- **Download**: Export the current settings configuration to a file
+- **Reset to Defaults**: Restore all settings to their default values
+- **Save Settings**: Save your changes
+
+![Settings Update](resources/images/vss-autocalib-ui/settings_update.jpg)
+
+> **Warning:** Do not attempt to change the settings while AMC calibration is running. Make all configuration changes before starting the calibration process (in Step 5: Execute).
+
+---
+
+## Step 4: Manual Alignment
+
+Create alignment data by selecting corresponding points across camera views and the layout map. This step is required for calibration.
+
+### Two Options for Alignment
+
+**Option 1: Upload Existing Alignment**
+
+If you already have an `alignment_data.json` file:
+
+1. Click **Upload alignment_data.json** button
+2. Select your JSON file from your computer
+3. Wait for upload confirmation
+4. Proceed to the next step
+
+**Option 2: Create Alignment Interactively**
+
+Create alignment data by selecting corresponding points:
+
+1. Click **Open Alignment Tool** button
+2. The interactive alignment interface opens
+3. Follow the point selection process
+
+![Alignment Option](resources/images/vss-autocalib-ui/alignment_option.jpg)
+
+Create alignment data by selecting corresponding points across camera views and the layout map.
+
+![Manual Alignment Tool](resources/images/vss-autocalib-ui/step4_manual_alignment_tool.jpg)
+
+### Alignment Status
+
+At the top of the page, you'll see the current alignment status:
+- **Green Badge**: "Alignment data exists" — file already uploaded or created
+- **Gray Badge**: "No alignment data" — need to upload or create alignment
+
+![Alignment Status](resources/images/vss-autocalib-ui/alignment_status.jpg)
+
+### Prerequisites Check
+
+Before creating alignment interactively, the system checks:
+- ✓ At least 2 videos uploaded
+- ✓ Layout image uploaded
+
+If prerequisites are not met, you'll see a warning message directing you to Step 2.
+
+### Interactive Alignment Tool
+
+**Interface Overview**
+
+The alignment tool displays three images side-by-side in a single concatenated canvas:
+- **Left**: Camera 0 (cam_00.mp4)
+- **Center**: Camera 1 (cam_01.mp4)
+- **Right**: Layout Map (BEV — Bird's Eye View)
+
+![Alignment Canvas](resources/images/vss-autocalib-ui/alignment_canvas.jpg)
+
+**Progress Indicator**
+
+At the top, you'll see:
+- **Progress Bar**: Visual progress (0–100%)
+- **Completion Status**: "X / Y sets (Min 4 required)" or "(Ready to save)"
+- **Current Action**: "Click on: Camera 0 / Camera 1 / Layout Map (Point set N)"
+
+### Point Selection Process
+
+1. **Select Point on Camera 0** — click on a distinct feature visible in Camera 0 (left section); a colored circle appears; system prompts "Click on: Camera 1"
+2. **Select Corresponding Point on Camera 1** — click on the same physical location in Camera 1 (center section); system prompts "Click on: Layout Map"
+3. **Select Corresponding Point on Layout** — click on the same physical location on the Layout Map (right section); **Point Set 1 Complete!**
+4. **Repeat for Additional Points** — system automatically moves to Point Set 2; each set uses a different color (Green, Blue, Red, Yellow); repeat for at least 4 total point sets
+
+![Point Selection Process](resources/images/vss-autocalib-ui/point_selection_process.jpg)
+
+**Point Selection Tips**
+- Choose points on the **ground plane**
+- Select **distinct features** (corners, markings, poles)
+- Ensure points are **visible in all three images**
+- Distribute points across **different depths and locations**
+- Avoid points on **moving objects**
+- Use **zoom controls** for precision
+
+### Zoom and Navigation
+
+**Zoom Controls** (located above the canvas):
+- **Zoom In** (🔍+): Increase zoom level
+- **Zoom Out** (🔍-): Decrease zoom level
+- **Reset (100%)**: Return to original zoom level
+- **Current Zoom**: Displayed as percentage (e.g., "Zoom: 150%")
+
+**Navigation**
+- **Scroll Wheel**: Zoom in/out on the canvas
+- **Click + Drag**: Pan around when zoomed in
+- **Zoom Range**: 50% to 300%
+
+![Zoom Controls](resources/images/vss-autocalib-ui/zoom_controls.jpg)
+
+### Point Set Management
+
+- **Undo Last Point**: Click the **Undo** button to remove the most recently placed point
+- **Reset All Points**: Click the **Reset All** button to clear all points and start over
+- **Add More Points**: After completing 4 point sets, click **Add More Points** to add additional sets for improved accuracy
+
+![Point Management](resources/images/vss-autocalib-ui/point_management.jpg)
+
+### Saving Alignment Data
+
+**Requirements**
+- Minimum 4 complete point sets
+- Each set must have all 3 points (Camera 0, Camera 1, Layout)
+
+**Save Process**
+
+1. Complete at least 4 point sets
+2. The **Save Alignment** button becomes enabled
+3. Button shows: "Save Alignment (X sets)" where X is the count
+4. Click **Save Alignment (X sets)**
+5. System generates and uploads the alignment JSON file
+6. Success message appears
+7. Alignment tool closes automatically
+
+![Save Alignment](resources/images/vss-autocalib-ui/save_alignment.jpg)
+
+Click the **Cancel** button to exit the alignment tool without saving.
+
+### Alignment Data Format
+
+The generated alignment data is a JSON array with the following structure:
+
 ```json
 [
   [
-    [u0_cam0, v0_cam0],
-    [u0_cam1, v0_cam1],
-    [u0_bev,  v0_bev],
+    [x0_cam0, y0_cam0],
+    [x0_cam1, y0_cam1],
+    [x0_layout, y0_layout]
   ],
-  [
-    [u1_cam0, v1_cam0],
-    [u1_cam1, v1_cam1],
-    [u1_bev,  v1_bev],
-  ],
-  [
-    [u2_cam0, v2_cam0],
-    [u2_cam1, v2_cam1],
-    [u2_bev,  v2_bev],
-  ],
-  [
-    [u3_cam0, v3_cam0],
-    [u3_cam1, v3_cam1],
-    [u3_bev,  v3_bev],
-  ]
-]
-```
-In this file, `[ui_cam0, vi_cam0], [ui_cam1, vi_cam1], [ui_bev, vi_bev]` are 
-corresponding points in camera 0, camera 1, and BEV map(i=0, 1, 2, 3). 
-If you save this file with 4 corresponding points in camera 0, camera 1, and 
-BEV map under `multi_view_results/manual_adjustment` folder, then the transform 
-from camera 0 to BEV map is calcuated and you can visualize the reconstruction 
-points with the estimated camera parameters.  
-
-For example, the following JSON file is for the sample data.
-```json
-[
-  [
-    [
-      476,
-      528
-    ],
-    [
-      1806,
-      802
-    ],
-    [
-      363,
-      651
-    ]
-  ],
-  [
-    [
-      1268,
-      532
-    ],
-    [
-      414,
-      794
-    ],
-    [
-      581,
-      654
-    ]
-  ],
-  [
-    [
-      1892,
-      828
-    ],
-    [
-      380,
-      416
-    ],
-    [
-      654,
-      796
-    ]
-  ],
-  [
-    [
-      172,
-      826
-    ],
-    [
-      1452,
-      422
-    ],
-    [
-      363,
-      796
-    ]
-  ]
+  ...
 ]
 ```
 
-You can use Interactive GUI to generate this flie. `launch_EndToEndCalib.sh` optionally run manual alignment UI and outputs the result (see example in [1. Complete End-to-End Pipeline](#1-complete-end-to-end-pipeline)). Make sure to remove any pre-generated `manual_alignment.json` file in the dataset folder.
+Each outer array element represents one point set with 3 coordinate pairs `[x, y]` in pixel space.
 
-Once the UI launches, you should see a window similar to this screenshot.
+### Deleting Alignment Data
+
+If alignment data already exists and you want to recreate it:
+
+1. The interface shows: "Alignment data already exists for this project"
+2. Click **Delete Alignment Data** button
+3. Confirm deletion
+4. Create new alignment using either upload or interactive method
+
+> **Warning:** Deleting alignment data cannot be undone. You'll need to recreate or re-upload it.
+
+### Best Practices
+
+**Point Selection Strategy**
+- **Minimum 4 points**: Required for calibration
+- **Recommended 6–8 points**: Better accuracy and robustness
+
+**Point Distribution**
+- Spread points across the entire area
+- Include points at different depths (near and far)
+- Cover all quadrants of the layout
+- Avoid clustering points in one area
+
+**Point Quality**
+- Use sharp, distinct features
+- Avoid ambiguous or blurry areas
+- Prefer corners and intersections
+- Ensure good contrast
+
+**Common Mistakes to Avoid**
+- ✗ Selecting points on walls or elevated surfaces
+- ✗ Choosing points only in the center
+- ✗ Using points on moving objects
+- ✗ Clicking too quickly without precision
+- ✗ Forgetting to zoom in for accuracy
+
+---
+
+## Step 5: Execute Calibration
+
+Verify project requirements and run the calibration pipeline with live monitoring.
+
+![Execute Step](resources/images/vss-autocalib-ui/execute_step.jpg)
+
+### Project State Overview
+
+At the top of the page, you'll see the current project state:
+- **INIT** (gray): Initial state
+- **READY** (blue): Ready to run calibration
+- **RUNNING** (orange): Calibration in progress
+- **COMPLETED** (green): Calibration finished
+- **ERROR** (red): Calibration failed
+
+When RUNNING, an elapsed time counter and progress bar are displayed.
+
+![Project State](resources/images/vss-autocalib-ui/project_state.jpg)
+
+### Requirements Checklist
+
+The system validates all required files before allowing calibration:
+
+- ✓ **Videos (minimum 2)**: Shows count of uploaded videos
+- ✓ **Layout Image**: Confirms layout is uploaded
+- ✓ **Alignment Data**: Confirms alignment is uploaded or created
+
+If any requirement is not met, you'll see a warning message: "Please complete all requirements before verification. Go back to previous steps to upload missing files."
+
+![Requirements Checklist](resources/images/vss-autocalib-ui/req_checklist.jpg)
+
+### Optional Configuration
+
+The system also displays optional configuration status:
+
+- **Ground Truth Data**: ✓ Uploaded (for evaluation purposes) or ⊙ Not provided (optional)
+- **Focal Length**: ✓ X value(s) shown, or ⊙ Not provided (optional)
+
+![Optional Configuration](resources/images/vss-autocalib-ui/optional_configuration.jpg)
+
+### Verification Process
+
+Before running calibration, you must verify the project.
+
+**How to Verify**
+
+1. Ensure all requirements are met (green checkmarks)
+2. Click the **Verify Project** button
+3. System validates all files and configurations
+4. Success message appears: "Project verified successfully"
+5. Project state changes to "READY"
+6. **Start Calibration** button becomes enabled
+
+![Verify Project](resources/images/vss-autocalib-ui/verify_project.jpg)
+
+### Running AMC Calibration
+
+AMC (Auto Magic Calibration) is the primary calibration method.
+
+**How to Start**
+
+1. After verification, click **Start Calibration** button
+2. Calibration pipeline begins immediately
+3. Project state changes to "RUNNING"
+4. Progress indicators appear
+
+**During Calibration**
+- **Elapsed Time**: Updates every second
+- **Progress Bar**: Animated progress indicator
+- **Status Message**: "AMC calibration is running..."
+- **Info Alert**: "This may take several minutes. You can close this page and return later."
+- **AMC Live Logs**: Real-time calibration logs displayed during execution
+- **Auto-refresh**: Status updates every 3 seconds
+
+![AMC Calibration Running](resources/images/vss-autocalib-ui/amc_calib_running.jpg)
+
+**Stopping Calibration**
+
+If needed, you can stop the calibration:
+
+1. Click **Stop Calibration** button (appears when RUNNING)
+2. Calibration process terminates
+3. Project state changes back to "READY"
+4. Elapsed time resets
+
+> **Warning:** Stopping calibration will discard partial results. You'll need to start over.
+
+### Calibration Completion
+
+When AMC calibration finishes successfully:
+- **Success Alert**: "✅ AMC Calibration completed successfully!"
+- **Message**: "You can now run VGGT calibration or proceed to view results."
+- **Project State**: Changes to "COMPLETED"
+- **AMC State**: Shows "COMPLETED" badge
+- **Next Steps**: Proceed to Results or run VGGT (if available)
+
+![AMC Calibration Completed](resources/images/vss-autocalib-ui/amc_completed.jpg)
+
+### Calibration Failure
+
+If calibration fails:
+- **Error Alert**: "❌ Calibration failed!"
+- **Message**: "Please check your input files and try again."
+- **Project State**: Changes to "ERROR"
+- **Reset Option**: "Reset Project" button appears
+
+**How to Recover**
+
+*Option 1: Relaunch Calibration*
+
+1. Click **Relaunch Calibration** button
+2. The project is re-verified automatically
+3. If verification passes, project state returns to "READY"
+4. You can then start calibration again
+
+*Option 2: Reset Project*
+
+1. Click **Reset Project** button
+2. Project state returns to "INIT"
+3. Go back to previous steps
+4. Check and re-upload files if needed
+5. Try calibration again
+
+![Project Reset](resources/images/vss-autocalib-ui/project_reset.jpg)
+
+### VGGT Calibration (Optional)
+
+VGGT (Vision-Geometry Graph Transformer) is an optional refinement method available after AMC completes.
+
+> VGGT is only available if the backend server has VGGT support installed.
+
+**When Available**
+- AMC calibration must be completed first
+- VGGT section appears below AMC section
+- VGGT state shows "READY"
+
+**How to Run VGGT**
+
+1. After AMC completes, scroll to **Calibration Control (VGGT)** section
+2. Click **Run VGGT Calibration** button
+3. VGGT pipeline begins; progress indicators appear (similar to AMC)
+
+**VGGT Features**
+- **Refinement**: Improves AMC results using graph transformer
+- **Duration**: Typically 2–3 minutes
+- **Independent**: Can be run multiple times
+- **Optional**: AMC results are valid without VGGT
+
+![VGGT Calibration](resources/images/vss-autocalib-ui/vggt_calib.jpg)
+
+**VGGT Completion**
+
+When VGGT finishes:
+- **Success Alert**: "✅ VGGT calibration completed successfully!"
+- **Message**: "Refined calibration results are available."
+- **VGGT State**: Shows "COMPLETED" badge
+- **Results**: Both AMC and VGGT results available in next step
+
+**VGGT Not Available**
+
+If VGGT is not installed on the backend:
+- **Info Alert**: "VGGT Calibration Not Available"
+- **Message**: "VGGT (Vision-Geometry Graph Transformer) is not installed on this system."
+- Proceed with AMC results only
+
+### Calibration Information
+
+At the bottom of the page, you'll see a summary of calibration information:
+- **Project ID**: Unique identifier
+- **Videos**: Number of cameras
+- **Focal Lengths**: Provided or Not provided
+- **AMC State**: Current AMC state
+- **VGGT State**: Current VGGT state
+
+![Calibration Information](resources/images/vss-autocalib-ui/calib_info.jpg)
+
+### Resetting the Project
+
+If you need to start over:
+
+1. Click **Reset Project** button (available in ERROR state)
+2. Confirm the action
+3. Project state returns to "INIT"
+4. All calibration results are cleared
+5. Files remain uploaded
+
+> **Warning:** Resetting clears all calibration results. Export results before resetting if needed.
+
+### Best Practices
+
+**Before Calibration**
+- Double-check all uploaded files
+- Verify alignment points are accurate
+- Review ROIs and tripwires
+- Ensure stable network connection
+
+**After Calibration**
+- Verify results in the Results step
+- Run VGGT if available for refinement
+- Export results before making changes
+- Keep a backup of exported data
+
+### Troubleshooting
+
+**Verification Fails**
+- Check that all required files are uploaded
+- Ensure video files are not corrupted
+- Verify alignment data has at least 4 point sets
+- Try re-uploading files
+
+**Calibration Takes Too Long**
+- Normal duration: 5–15 minutes depending on video length
+- Check server resources (CPU, GPU, memory)
+- Verify network connection is stable
+- Contact administrator if it exceeds 30 minutes
+
+**Calibration Fails**
+- Check video file formats and quality
+- Verify alignment points are on the ground plane
+- Ensure layout image matches physical space
+- Review server logs for detailed errors
+
+---
+
+## Step 6: Results
+
+View calibration results, evaluate accuracy, and export calibration data.
+
+![Results Step](resources/images/vss-autocalib-ui/results_step.jpg)
+
+### Results Availability
+
+The Results step is only accessible after calibration completes successfully.
+
+**If Calibration Not Complete**
+- **Running**: "Calibration is still running — Please wait for calibration to complete."
+- **Error**: "Calibration failed — Please check your input files and try again."
+- **Init/Ready**: "Please run calibration in the Execute step"
+
+![Results Not Ready](resources/images/vss-autocalib-ui/step6_if_amc_is_running.jpg)
+
+### Overlay Image
+
+The overlay image shows the calibration results projected onto the layout map.
+
+**Features**
+- **View**: Displays cameras' fields of view on the layout
+- **Download**: Save the overlay image to your computer
+- **Result Type Tabs**: Switch between AMC and VGGT results (if available)
+  - **AMC Result** tab: Shows AMC calibration overlay
+  - **VGGT Result** tab: Shows VGGT calibration overlay (if available); disabled if VGGT was not run
+
+**How to View**
+1. The overlay image loads automatically
+2. Use the tabs to switch between AMC and VGGT results
+3. Click **Download** button to save the image
+
+![Overlay Image](resources/images/vss-autocalib-ui/overlay_image.jpg)
+
+### Evaluation Metrics
+
+If ground truth data was uploaded, evaluation metrics are available.
+
+**Metrics Display**
+- **Layout Visualization**: 3D points plotted on layout showing accuracy
+- **Statistics Card**: L2 distance statistics in meters
+  - Average L2 distance
+  - Standard deviation
+  - Maximum distance
+  - Minimum distance
+- **Result Type Tabs**: Switch between AMC and VGGT evaluation
+
+![Evaluation Metrics](resources/images/vss-autocalib-ui/evaluation_metrics.jpg)
+
+**Interpreting Metrics**
+- **Lower Average**: Better calibration accuracy
+- **Lower Std Dev**: More consistent calibration
+- **Compare AMC vs VGGT**: VGGT typically shows improvement
+
+> Evaluation metrics are only available if ground truth data was uploaded in Step 2.
+
+### Camera Parameters
+
+View detailed calibration parameters for each camera.
+
+**Features**
+- **Camera Tabs**: Switch between cameras (Camera 0, Camera 1, etc.)
+- **Result Type Tabs**: Switch between AMC and VGGT parameters
+- **YAML Format**: Parameters displayed in YAML format
+- **Export Button**: Export all camera parameters
+
+**How to View**
+1. Click on a camera tab (e.g., "Camera 0")
+2. Parameters load and display in a code block
+3. Switch between AMC and VGGT tabs to compare
+4. Click **Export AMC** or **Export VGGT** to download all parameters
+
+![Camera Parameters](resources/images/vss-autocalib-ui/cam_params.jpg)
+
+**Parameter Contents**
+
+The YAML file contains:
+- **Camera Projection Matrix (3×4)**: Camera projection matrix
+- **Additional Metadata**: Project ID, timestamp, etc.
+
+### Export Calibration Data
+
+Export complete calibration data in various formats.
+
+**Export Options**
+
+1. **Full Export AMC** — complete calibration data with ROI/tripwire world coordinates; uses AMC projection matrix; JSON format; filename: `{project_name}_exported.json`
+2. **Full Export VGGT** *(if available)* — same as above using VGGT projection matrix; filename: `{project_name}_exported_vggt.json`
+3. **MV3DT ZIP AMC** — MV3DT-compatible format for verification; ZIP archive; filename: `{project_name}_mv3dt.zip`
+4. **MV3DT ZIP VGGT** *(if available)* — MV3DT-compatible format with VGGT results; ZIP archive; filename: `{project_name}_vggt_mv3dt.zip`
+5. **Delete Results** — removes all calibration results; project returns to READY state; allows re-running calibration
+
+![Export Options](resources/images/vss-autocalib-ui/export_options.jpg)
+
+**How to Export**
+
+- **Full Export AMC** and **Full Export VGGT**: The JSON is loaded in an editor where you can view and edit the calibration data. Once you are done editing, click **Export AMC** or **Export VGGT** to download the file automatically to your browser's download folder.
+
+![Export JSON Editor](resources/images/vss-autocalib-ui/export_json.jpg)
+
+> This is an advanced user feature. Edit the JSON only if you understand the calibration schema; any changes should be made carefully to avoid invalid or incorrect calibration output.
+
+- **Other exports (MV3DT ZIP)**:
+
+  1. Click the desired export button
+  2. Wait for processing (may take a few seconds)
+  3. File downloads automatically to your browser's download folder
+  4. Success message confirms export
+
+> **Export Options Explained:**
+> - **Full Export**: Complete calibration with ROI/tripwire world coordinates
+> - **MV3DT ZIP**: MV3DT-compatible format for verification
+
+### ROI & Tripwire Verification
+
+Verify that ROIs and tripwires are correctly projected onto the layout.
+
+**Features**
+- **Side-by-Side View**: Camera view and Bird's Eye View (BEV) simultaneously
+- **Camera Selection**: Choose which camera to verify
+- **Result Type Tabs**: Switch between AMC and VGGT projections
+- **Zoom Controls**: Zoom in/out on BEV for detailed inspection
+- **Pan Support**: Drag to pan around zoomed BEV
+
+**How to Use**
+
+> **Prerequisite**: You must click **Full Export AMC** (and **Full Export VGGT** if VGGT results are available) before using this verification feature.
+
+1. Click **Show ROI & Tripwire Verification**
+
+![Show ROI and Tripwires](resources/images/vss-autocalib-ui/show_roi_and_tripwires.jpg)
+
+2. Select a camera from the dropdown
+3. View annotations on the camera frame (left panel)
+4. View projected annotations on BEV (right panel)
+5. Switch between AMC and VGGT tabs to compare
+6. Use zoom controls for detailed inspection
+
+![ROI and Tripwire Verification](resources/images/vss-autocalib-ui/roi_and_tripwire_verification.jpg)
+
+**Camera View (Left Panel)**
+- Shows rectified camera frame
+- ROIs displayed as green polygons
+- Tripwire lines displayed as red lines
+- Tripwire directions displayed as yellow arrows
+
+**Bird's Eye View (Right Panel)**
+- Shows layout map with projected annotations
+- All cameras' annotations shown with different colors
+- Zoom: 50% to 500%
+- Pan: Click and drag when zoomed
+
+**Zoom Controls**
+- **Zoom In** (🔍+): Increase zoom level
+- **Zoom Out** (🔍-): Decrease zoom level
+- **Reset** (↻): Return to 100% zoom
+- **Current Zoom**: Displayed as percentage
+
+![BEV Zoom Controls](resources/images/vss-autocalib-ui/bev_zoom_controls.jpg)
+
+### Deleting Results
+
+If you need to re-run calibration with different parameters:
+
+1. Click **Delete Results** button
+2. Confirm deletion in the dialog
+3. All calibration results are removed
+4. Project state returns to "READY"
+5. Files (videos, layout, alignment) remain uploaded
+
+> **Warning:** Deleting results cannot be undone. Export important data before deletion.
+
+### Completion Message
+
+At the bottom of the page, a success message confirms calibration is complete.
+
+![Calibration Complete](resources/images/vss-autocalib-ui/calib_completed.jpg)
+
+**Message**
+- **Title**: "🎉 Calibration Complete!"
+- **Text**: "All calibration results are ready. You can export the data and use it in your applications."
+
+### How to Interpret Calibration Outputs
+
+Upon completion, the UI presents overlay images and metric numbers depending on whether ground truth data was provided.
+
+**Case 1: Ground Truth Data Exists**
+
+If ground truth data was uploaded, the tool calculates the **L2 distance** as the primary evaluation metric — the Euclidean distance between the 3D ground truth object location and the estimated location determined by triangulation.
+
+Statistics displayed:
+- **Average**: Mean L2 distance across all points
+- **Standard Deviation**: Measure of consistency
+- **Maximum**: Worst-case error
+- **Minimum**: Best-case error
+
+Since a lower L2 distance indicates better accuracy, compare these metrics between AMC and VGGT results to select the superior calibration.
+
+Additionally, calibration results from the two methods can be compared visually using the overlay visualization. Object trajectories reconstructed using the camera matrices are shown as colored lines; ground truth trajectories are displayed in white. A close alignment of the colored trajectories with the white lines signifies accurate camera parameters.
+
+> When comparing AMC and VGGT results: look for lower L2 distance values (better accuracy), compare overlay images for trajectory alignment, and check consistency of colored lines with white ground truth lines.
+
+**Case 2: No Ground Truth Data**
+
+When ground truth data is unavailable, calibration results can be compared qualitatively using overlay images, which display:
+- **Reconstructed object trajectories**: Shown as colored lines
+- **Estimated camera locations**: Shown as colored dots with corresponding camera IDs
+
+**Qualitative Evaluation Tips:**
+- Camera positions should match expected physical locations
+- Object trajectories should follow logical paths on the floor map
+- FOV (Field of View) boundaries should align with physical constraints
+- Compare AMC and VGGT overlays to identify which better matches the layout
+
+### Best Practices
+
+**Reviewing Results**
+- Check overlay image for proper camera coverage
+- Verify evaluation metrics if ground truth is available
+- Compare AMC and VGGT results if both available
+- Review camera parameters for reasonableness
+
+**Exporting Data**
+- Export both AMC and VGGT results for comparison
+- Keep MV3DT ZIP for verification purposes
+- Store exports with descriptive names and dates
+- Maintain backups of important calibration data
+
+**Verification**
+- Always verify ROI/tripwire projections
+- Check all cameras, not just one
+- Use zoom to inspect details
+- Compare AMC vs VGGT projections
+
+**Before Deleting**
+- Export all needed data first
+- Verify exports are complete and valid
+- Document any issues or observations
+- Consider keeping project for reference
+
+### Next Steps
+
+After completing calibration:
+- Use exported data in your surveillance application
+- Integrate calibration parameters with your tracking system
+- Set up ROIs and tripwires in your production environment
+- Monitor and validate calibration accuracy in real-world scenarios
 
 
-<div align="center">
-<img src="resources/images/manual_alignment_UI.png" alt="Manual Alignment UI" width="85%">
-</div>
-
-In the window, the image on the left is the camera 0's view, one in the middle is 
-the camera 1's view, and the last one is BEV map. 
-You need to click the following order:
-1. click one point in the camera 0's view.
-2. click the corresponding point in the camera 1's view.
-3. click the corresponding point in the BEV map.
-4. repeat 1~3 for 4 corresponding points.
-5. press 'q' key in your keyboard.
-
-**Note**: In order to get accurate alignment data,
-- The points should be on the ground plane.
-- The area of the polygon made by the points should be as large as possible.
-
-This figure is one example of the 4 corresponding points for the sample data.
-
-<div align="center">
-<img src="resources/images/manual_alignment_data.png" alt="Manual Alignment Data" width="85%">
-</div>
-
-
-<br><br>
 # Assumptions
 
-AutoMagicCalib makes several assumptions about input data structure and naming conventions. Please ensure your data follows these requirements:
+AutoMagicCalib makes several assumptions about input data structure. Please ensure your data follows these requirements:
 
-### Input Video Naming Convention:
-Video files must follow the naming pattern `cam_XX.mp4` where XX matches the camera IDs in your configuration.
-The camera numbers (XX) must correspond to the `cam_dir` entries in your configuration file (`mv_amc_config.yaml`).
-
-```
-input_video_directory/
-├── cam_00.mp4
-├── cam_01.mp4
-├── cam_02.mp4
-└── cam_03.mp4
-```
- 
 ## Input Video Contents:
 There must be objects moving around the scene, because AMC relies on tracking results.
 Cameras must be specified in order and have overlapping areas: `cam_00` overlaps with `cam_01`, and `cam_01` overlaps with `cam_02`, ...
 
-### Input Video Resolution:
+## Input Video Resolution:
 Video files' resolution should be 1920x1080. 
 
-### Time-synced Input Videos:
+## Time-synced Input Videos:
 Input video files from all cameras must be synchronized
 
-### Ground Truth Directory Structure:
-When providing ground truth data for evaluation, the directory structure must follow this specific naming convention:
+
+# Custom Dataset
+
+For a custom dataset, you should prepare the following items:
+
+- **Input videos** — Camera video files for calibration
+- **A floor map** — Layout/map image of the surveillance area
+- **Ground truth data (optional)** — For calibration evaluation
+
+The input videos required for calibration must be uploaded to the tool. Users should pay close attention to the order in which they upload the video streams, as this order implicitly determines the pairing of the cameras. For optimal results, consecutive camera pairs should have a significant amount of overlapping Field of View (FOV).
+
+## Guidelines for Input Videos to Achieve Optimal Calibration Results
+
+To ensure the most accurate camera calibration, careful consideration should be given to how the input videos are captured. The following points detail how to maximize the quality of the calibration outcome.
+
+### 1. Minimizing Lens Distortion
+
+The current calibration methodology performs best when input videos are "linear," meaning they exhibit no lens distortion. While the tool can handle minor distortion, optimal results are achieved when lens distortion is zero.
+
+### 2. Maximizing Camera Overlap
+
+Accurate calibration requires a significant degree of overlap between the fields of view of the different cameras. It is essential to maximize the overlap between cameras as much as possible.
+
+### 3. Leveraging Unique Scene Features
+
+The presence of diverse and unique objects in the input videos contributes significantly to calibration accuracy. Our automatic calibration tool specifically utilizes people moving within the field of view, so videos with many moving people are ideal. The trajectories of these moving subjects should cover the Field of View (FOV) as broadly as possible.
+
+Additionally, large, unique objects can enhance accuracy. For instance, in a setting like a warehouse with multiple cameras, views can become challenging due to repetitive elements (e.g., similar racks). In such environments, large, distinct objects, like forklifts, are beneficial for better calibration accuracy.
+
+## Ground Truth Data Format
+
+If you want to evaluate the camera calibration results using ground truth data, you should have a ZIP file containing the following data files:
+
+- `calibration.json`
+- `ground_truth.json`
+
+### calibration.json
+
+This file has camera parameters including intrinsic and extrinsic parameters. The JSON schema definition for calibration is as follows:
+
+```json
+{
+   "sensors": [
+       {
+           "id": "Camera",
+           "intrinsicMatrix": [
+               [1269.00511584492, -3.730349362740526e-14, 959.9999999999999],
+               [0.0, 1269.0051158449194, 539.9999999999999],
+               [0.0, 0.0, 0.9999999999999998]
+           ],
+           "extrinsicMatrix": [
+               [0.9999941499743863, 0.0020258073539418126, 0.00275610623331978, 7.506433779240641],
+               [0.00329149786382878, -0.3506837842628175, -0.9364881470135763, 1.2002890745303207],
+               [-0.0009306228113685242, 0.936491740251709, -0.3506884006942753, 11.111379874347342]
+           ],
+           "attributes": [
+               {"name": "frameWidth", "value": 1920},
+               {"name": "frameHeight", "value": 1080}
+           ],
+           "cameraMatrix": [
+               [1268.1042942335746, 901.6028305375089, -333.16335175660936, 20192.627546980937],
+               [3.6743913098523424, 60.686023462551134, -1377.7799858632666, 7523.318108219307],
+               [-0.0009306228113685238, 0.9364917402517088, -0.35068840069427526, 11.111379874347342]
+           ]
+       },
+       {
+           "id": "Camera_01",
+           "intrinsicMatrix": [
+               [1099.498973963849, -4.707345624410664e-14, 960.0],
+               [0.0, 1099.4989739638488, 539.9999999999998],
+               [0.0, 0.0, 1.0]
+           ],
+           "extrinsicMatrix": [
+               [-0.9999609312669344, -0.008839453589732555, 5.147844000033541e-11, -7.521032053009582],
+               [-0.004417374837733223, 0.4997143960386968, -0.866178970647073, -0.1501353870483639],
+               [0.007656548785712605, -0.8661451301323095, -0.49973392001021566, 10.265551144735602]
+           ],
+           "attributes": [
+               {"name": "frameWidth", "value": 1920},
+               {"name": "frameHeight", "value": 1080}
+           ],
+           "cameraMatrix": [
+               [-1092.1057310976453, -841.2182950793291, -479.7445631532065, 1585.5620735129166],
+               [-0.7223627574165982, 81.71709544806465, -1222.2192063010361, 5378.3239141418835],
+               [0.0076565487857126035, -0.8661451301323094, -0.4997339200102156, 10.2655511447356]
+           ]
+       }
+   ]
+}
 ```
-groundtruth_directory/
-├── _World_Cameras_Camera_00/
-│   ├── camera_params/
-│   └── object_detection/
-├── _World_Cameras_Camera_01/
-│   ├── camera_params/
-│   └── object_detection/
-├── _World_Cameras_Camera_02/
-│   └── ... (similar structure)
-└── _World_Cameras_Camera_03/
-    └── ... (similar structure)
+
+**Parameter Descriptions:**
+
+| Parameter | Description |
+|---|---|
+| `id` | Unique string identifier for the sensor (e.g., Camera, Camera_01, Camera_02, …). This string should match the camera ID in `ground_truth.json`. |
+| `intrinsicMatrix` | 3×3 camera intrinsic parameter matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
+| `extrinsicMatrix` | 3×4 camera extrinsic parameter matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
+| `cameraMatrix` | 3×4 combined camera projection matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
+| `attributes` | Array of name-value pairs for additional sensor attributes. `frameHeight`: image height resolution, `frameWidth`: image width resolution. |
+
+### ground_truth.json
+
+This file has object information including 3D locations and bounding boxes. The JSON schema definition for ground truth object data is as follows:
+
+```json
+{
+    "0": [
+        {
+            "object id": 0,
+            "object type": "person",
+            "object name": "male_adult_police_04",
+            "3d location": [-7.82265567779541, 4.5983476638793945, -9.851457150045206e-11],
+            "2d bounding box visible": {
+                "Camera": [912, 362, 955, 507],
+                "Camera_01": [960, 664, 1062, 941]
+            }
+        },
+        {
+            "object id": 2,
+            "object type": "person",
+            "object name": "female_adult_police_01",
+            "3d location": [-17.455900192260742, 15.370429992675781, 0.02103900909423828],
+            "2d bounding box visible": {
+                "Camera": [447, 245, 470, 276]
+            }
+        },
+        {
+            "object id": 4,
+            "object type": "person",
+            "object name": "female_adult_police_03",
+            "3d location": [-13.054417610168457, 2.3046987056732178, 0.02103901281952858],
+            "2d bounding box visible": {
+                "Camera": [391, 418, 443, 576],
+                "Camera_01": [1668, 481, 1805, 688],
+                "Camera_02": [1084, 398, 1125, 530]
+            }
+        }
+    ],
+    "1": [
+        {
+            "object id": 0,
+            "object type": "person",
+            "object name": "male_adult_police_04",
+            "3d location": [-7.822440147399902, 4.597992420196533, -1.1969732149896828e-10],
+            "2d bounding box visible": {
+                "Camera": [912, 362, 955, 507],
+                "Camera_01": [960, 664, 1062, 609]
+            }
+        }
+    ]
+}
 ```
 
-### Layout and Alignment Files:
-For visualization and evaluation features:
-- **Layout image**: Must be named `layout.png` and placed in the `manual_adjustment/` directory
-- **Alignment data**: Generated as `alignment_data.json` in the `manual_adjustment/` directory
+**Parameter Descriptions:**
 
-### Camera Configuration:
-The `mv_amc_config.yaml` file must contain:
+| Parameter | Description |
+|---|---|
+| frame index | Video frame index (0, 1, …) — the top-level keys |
+| `object id` | Object index (integer value) |
+| `object type` | Object class (person, fork lift, etc.) |
+| `object name` | Unique object name |
+| `3d location` | Object's 3D location in meters [x, y, z] |
+| `2d bounding box visible` | 2D bounding boxes in each camera view [x_min, y_min, x_max, y_max] |
 
-- **Camera directories**: Listed in `cam_dir` array (e.g., `['cam_00', 'cam_01', 'cam_02', 'cam_03']`)
-- **Camera pairing**: System automatically generates pairs from directory ordering: `[[0,1], [1,2], [2,3]]`
-- **Camera numbers**: Extracted from directory names (e.g., 'cam_02' → camera 2)
 
-### File Structure Requirements:
-- Video files and ground truth directories should use consistent camera numbering
-- All camera IDs must be zero-padded (e.g., `00`, `01`, `02` not `0`, `1`, `2`)
-- Directory and file names are case-sensitive
-- Ground truth camera parameter files follow specific internal naming conventions
-
-<br><br>
 # License
 
 ## Repository Licenses
@@ -846,7 +1365,9 @@ This repository contains materials released under different licenses:
 - The scripts and code are licensed under the Apache License 2.0.
 - The assets are licensed under the Creative Commons Attribution 4.0 International (CC-BY-4.0) license.
 
-## Proprietary Container Notices (AutoMagicCalib)
-The scripts in this repository interact with and pull the proprietary AutoMagicCalib Container. The use of this container, and any software, data, or intellectual property contained within it, is governed by a separate set of licenses and third-party notices.
+## Proprietary Container Notices (AutoMagicCalib and AutoMagicCalibUI)
+The scripts in this repository interact with and pull the proprietary AutoMagicCalib and AutoMagicCalibUI containers. The use of these containers, and any software, data, or intellectual property contained within them, is governed by a separate set of licenses and third-party notices.
 
-The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the container can be found in [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=1.0).
+The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the containers can be found in:
+- [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=2.0.0)
+- [AutoMagicCalibUI page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib-ui?version=2.0.0)

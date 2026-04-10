@@ -1,7 +1,14 @@
 # Dataset Card
 
 ## Dataset Description:
+
+### sdg_08_2_sample_data_010926.zip
 The dataset is created in a synthetic Warehouse environment in Omniverse where a set of human characters are moving around. Four virtual cameras were placed within the environment and captured for a few minutes (2.5 min) of the dynamic scene. The dataset consists of four video files and ground-truth data including bounding boxes, character IDs, 3D location, etc., which are obtained from Omniverse directly.
+
+This dataset is ready for commercial use under CC BY 4.0 license
+
+### nv_warehouse_032326.zip
+The dataset is created in a real Warehouse environment where people are moving around. Six cameras were placed within the environment and captured for a few minutes (5 min) of the dynamic scene.
 
 This dataset is ready for commercial use under CC BY 4.0 license
 
@@ -9,18 +16,19 @@ This dataset is ready for commercial use under CC BY 4.0 license
 NVIDIA Corporation
 
 ## Dataset Creation Date:
-September 2025
+January 2026
 
 ## License/Terms of Use: 
 CC BY 4.0 license
 
 ## Intended Usage:
-A sample synthetic dataset to demonstrate AMC Tool's capability on camera calibration and evaluation of the results of the AMC Tool
+Sample datasets to demonstrate AMC Tool's capability on camera calibration and evaluation of the results of the AMC Tool
 
 ## Dataset Characterization
 
 ### Data Collection Method
 * Synthetic
+* Real
 
 ### Labeling Method
 * Synthetic
@@ -31,10 +39,22 @@ A sample synthetic dataset to demonstrate AMC Tool's capability on camera calibr
 * .json
 
 ## Dataset Quantification
+
+### sdg_08_2_sample_data_010926.zip
 * 4 Video files
 * 1 Image file
-* Total 27,022 items including various metadata files
-* Total 219.4 MB in a compressed file (722.1MB when unzipped)
+* 1 GT.zip file
+* 1 Alignment JSON file
+* Total 7 items
+* Total 154 MB in a compressed file (154 MB when unzipped)
+
+### nv_warehouse_032326.zip
+* 6 Video files
+* 1 Image file
+* 1 Alignment JSON file
+* 1 Config JSON file
+* Total 9 items
+* Total 1836 MB in a compressed file (1836 MB when unzipped)
 
 ## Reference(s):
 N/A
