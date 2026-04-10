@@ -1,6 +1,6 @@
 services:
   auto-magic-calib-ui:
-    image: nvcr.io/nvstaging/deepstream/auto-magic-calib-ui:2.0.0
+    image: nvcr.io/nvidia/auto-magic-calib-ui:2.0.0
     container_name: auto-magic-calib-ui-1
     
     ports:

@@ -73,7 +73,7 @@ Password: "YOUR_NGC_API_KEY"
 Clone the repo to your local directory.
 ```bash
 # clone the repo
-git clone ssh://git@gitlab-master.nvidia.com:12051/DeepStreamSDK/auto-magic-calib.git
+git clone https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git
 cd auto-magic-calib
 ```
 
@@ -1368,4 +1368,4 @@ This repository contains materials released under different licenses:
 ## Proprietary Container Notices (AutoMagicCalib)
 The scripts in this repository interact with and pull the proprietary AutoMagicCalib Container. The use of this container, and any software, data, or intellectual property contained within it, is governed by a separate set of licenses and third-party notices.
 
-The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the container can be found in [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=1.0).
+The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the container can be found in [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=2.0.0).
