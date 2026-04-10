@@ -110,7 +110,7 @@ sudo chown 1000:1000 -R models
 ```
 
 #### Launch Services
-Start all services using Docker Compose. Docker images will be pulled automatically on the first run.
+Start all services using Docker Compose. Container images will be pulled automatically on the first run.
 ```bash
 cd compose
 docker compose up -d
