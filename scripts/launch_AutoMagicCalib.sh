@@ -330,7 +330,7 @@ echo "done peoplenet detector"
 
 echo "convert format"
 echo "bash ${SCRIPT_ROOT}/convert_det2kitti.sh \"${OUT_DIR}\""
-bash ${SCRIPT_ROOT}/convert_det2kitti.sh "${OUT_DIR}"
+LC_ALL="C" bash ${SCRIPT_ROOT}/convert_det2kitti.sh "${OUT_DIR}"
 echo "done converting format"
 
 # copy detection
