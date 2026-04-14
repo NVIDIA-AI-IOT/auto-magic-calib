@@ -40,21 +40,12 @@ Sample datasets to demonstrate AMC Tool's capability on camera calibration and e
 
 ## Dataset Quantification
 
-### sdg_08_2_sample_data_010926.zip
 * 4 Video files
 * 1 Image file
 * 1 GT.zip file
 * 1 Alignment JSON file
 * Total 7 items
 * Total 154 MB in a compressed file (154 MB when unzipped)
-
-### nv_warehouse_032326.zip
-* 6 Video files
-* 1 Image file
-* 1 Alignment JSON file
-* 1 Config JSON file
-* Total 9 items
-* Total 1836 MB in a compressed file (1836 MB when unzipped)
 
 ## Reference(s):
 N/A
