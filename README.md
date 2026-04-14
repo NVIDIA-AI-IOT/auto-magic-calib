@@ -44,7 +44,7 @@ The service supports both a geometry-based approach (AMC) using object trajector
     - [ground\_truth.json](#ground_truthjson)
 - [License](#license)
   - [Repository Licenses](#repository-licenses)
-  - [Proprietary Container Notices](#proprietary-container-notices-automagiccalib)
+  - [Proprietary Container Notices](#proprietary-container-notices-automagiccalib-and-automagiccalibui)
 
 <br><br>
 # Quick Start
@@ -73,7 +73,7 @@ Password: "YOUR_NGC_API_KEY"
 Clone the repo to your local directory.
 ```bash
 # clone the repo
-git clone ssh://git@gitlab-master.nvidia.com:12051/DeepStreamSDK/auto-magic-calib.git
+git clone https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git
 cd auto-magic-calib
 ```
 
@@ -110,7 +110,7 @@ sudo chown 1000:1000 -R models
 ```
 
 #### Launch Services
-Start all services using Docker Compose. Docker images will be pulled automatically on the first run.
+Start all services using Docker Compose. Container images will be pulled automatically on the first run.
 ```bash
 cd compose
 docker compose up -d
@@ -144,10 +144,6 @@ Unzip the compressed sample data file `auto-magic-calib/assets/sdg_08_2_sample_d
 ```
 
 Now you're ready to start the calibration process.
-
-
-To try real world case, we have another sample data file `auto-magic-calib/assets/nv_warehouse_032326.zip`. The sample folder includes 4 different files.
-It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](#configuring-settings)
 
 In case you want to try your own dataset, please verify requirements (files, directories, formats) explained in [Assumptions](#assumptions) section.
 
@@ -1365,7 +1361,9 @@ This repository contains materials released under different licenses:
 - The scripts and code are licensed under the Apache License 2.0.
 - The assets are licensed under the Creative Commons Attribution 4.0 International (CC-BY-4.0) license.
 
-## Proprietary Container Notices (AutoMagicCalib)
-The scripts in this repository interact with and pull the proprietary AutoMagicCalib Container. The use of this container, and any software, data, or intellectual property contained within it, is governed by a separate set of licenses and third-party notices.
+## Proprietary Container Notices (AutoMagicCalib and AutoMagicCalibUI)
+The scripts in this repository interact with and pull the proprietary AutoMagicCalib and AutoMagicCalibUI containers. The use of these containers, and any software, data, or intellectual property contained within them, is governed by a separate set of licenses and third-party notices.
 
-The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the container can be found in [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=1.0).
+The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the containers can be found in:
+- [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=2.0.0)
+- [AutoMagicCalibUI page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib-ui?version=2.0.0)
