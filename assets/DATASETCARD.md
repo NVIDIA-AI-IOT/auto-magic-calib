@@ -7,6 +7,11 @@ The dataset is created in a synthetic Warehouse environment in Omniverse where a
 
 This dataset is ready for commercial use under CC BY 4.0 license
 
+### nv_warehouse_032326.zip
+The dataset is created in a real Warehouse environment where people are moving around. Six cameras were placed within the environment and captured for a few minutes (5 min) of the dynamic scene.
+
+This dataset is ready for commercial use under CC BY 4.0 license
+
 ## Dataset Owner(s):
 NVIDIA Corporation
 
@@ -17,12 +22,13 @@ January 2026
 CC BY 4.0 license
 
 ## Intended Usage:
-A sample synthetic dataset to demonstrate AMC Tool's capability on camera calibration and evaluation of the results of the AMC Tool
+Sample datasets to demonstrate AMC Tool's capability on camera calibration and evaluation of the results of the AMC Tool
 
 ## Dataset Characterization
 
 ### Data Collection Method
 * Synthetic
+* Real
 
 ### Labeling Method
 * Synthetic
@@ -33,6 +39,7 @@ A sample synthetic dataset to demonstrate AMC Tool's capability on camera calibr
 * .json
 
 ## Dataset Quantification
+
 * 4 Video files
 * 1 Image file
 * 1 GT.zip file
