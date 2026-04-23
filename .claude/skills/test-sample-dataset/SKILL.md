@@ -1,13 +1,15 @@
 ---
 name: "test-sample-dataset"
 description: "Run end-to-end calibration on the shipped sample dataset (assets/sdg_08_2_sample_data_010926.zip) against a running AMC microservice. Use when user says 'test sample dataset', 'run sample calibration', 'verify AMC install', or 'launch and test'."
+owner: "nvidia-automagiccalib-team"
+service: "auto-magic-calib"
+version: "1.0.0"
+reviewed: "2026-04-22"
 metadata:
   author: "NVIDIA AutoMagicCalib Team"
   tags: [amc, calibration, sample, rest-api, validation, python]
   languages: [python, bash]
   domain: calibration
-service: "auto-magic-calib"
-version: "1.0.0"
 ---
 
 # Skill: Test Sample Dataset
@@ -282,6 +284,7 @@ docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 ## Related Skills
 
 - `.claude/skills/setup-launch-containers/SKILL.md` — launch MS + UI (prerequisite).
-- `.claude/skills/calibrate-new-dataset/SKILL.md` — run calibration on your own videos.
+- `.claude/skills/calibrate-videos/SKILL.md` — run calibration on your own pre-recorded MP4s.
+- `.claude/skills/calibrate-rtsp-streams/SKILL.md` — run calibration on live RTSP streams via VIOS.
 
 Root `README.md` "Sample Data Setup" and "Calibration Workflow (UI)" sections cover the human-oriented path through the same sample.

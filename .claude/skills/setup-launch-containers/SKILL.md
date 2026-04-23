@@ -1,13 +1,15 @@
 ---
 name: "setup-launch-containers"
 description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
+owner: "nvidia-automagiccalib-team"
+service: "auto-magic-calib"
+version: "1.0.0"
+reviewed: "2026-04-22"
 metadata:
   author: "NVIDIA AutoMagicCalib Team"
   tags: [amc, deepstream, docker, calibration, setup, ngc]
   languages: [bash]
   domain: calibration
-service: "auto-magic-calib"
-version: "1.0.0"
 ---
 
 # Skill: Launch AutoMagicCalib Containers
@@ -232,6 +234,7 @@ Project data in `$REPO_ROOT/projects/` is preserved. Use `docker compose down -v
 ## Related Skills
 
 - `.claude/skills/test-sample-dataset/SKILL.md` — sanity-check the running stack on the shipped sample data.
-- `.claude/skills/calibrate-new-dataset/SKILL.md` — calibrate your own videos via REST API.
+- `.claude/skills/calibrate-videos/SKILL.md` — calibrate your own pre-recorded MP4s via REST API.
+- `.claude/skills/calibrate-rtsp-streams/SKILL.md` — calibrate from live RTSP streams via VIOS.
 
 See the root `README.md` "Quick Start" section for the human-readable version of this flow.

@@ -8,13 +8,17 @@ Structured skills for AI coding assistants working with AutoMagicCalib. Each ski
 
 **[test-sample-dataset](skills/test-sample-dataset/SKILL.md)** — End-to-end sanity check on the shipped sample (`assets/sdg_08_2_sample_data_010926.zip`, 4 synthetic warehouse cameras with GT). Drives the REST API via a self-contained Python script; also documents the Swagger UI walkthrough as an alternative.
 
-**[calibrate-new-dataset](skills/calibrate-new-dataset/SKILL.md)** — Calibrate a new camera rig on user-supplied videos. Covers the full API sequence (create project → upload files → verify → calibrate → poll → results), handles the manual-alignment UI fallback, and includes the optional VGGT refinement step.
+**[calibrate-videos](skills/calibrate-videos/SKILL.md)** — Calibrate a camera rig from pre-recorded **MP4 files**. Full API sequence (create project → upload files → verify → calibrate → poll → results), plus manual-alignment UI fallback and optional VGGT refinement.
+
+**[calibrate-rtsp-streams](skills/calibrate-rtsp-streams/SKILL.md)** — Calibrate from **live RTSP streams**. Uses VIOS to record fixed-duration clips, ingests them into the project, then runs the same calibration tail as `calibrate-videos`. Requires a reachable VIOS instance.
 
 ## Typical Flow
 
 1. **First-time setup**: run `setup-launch-containers` to bring up MS + UI.
 2. **Verify install**: run `test-sample-dataset` on the bundled sample.
-3. **Calibrate your own data**: run `calibrate-new-dataset`.
+3. **Calibrate your own data**:
+   - Pre-recorded MP4s → `calibrate-videos`
+   - Live RTSP cameras → `calibrate-rtsp-streams`
 
 ## For Humans
 
