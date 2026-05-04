@@ -145,6 +145,14 @@ Unzip the compressed sample data file `auto-magic-calib/assets/sdg_08_2_sample_d
 
 Now you're ready to start the calibration process.
 
+To try real world case, we have another sample data file [nv_warehouse_032326.zip](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/amc-nv-warehouse). The sample folder includes 4 different files. It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](#configuring-settings). For AMC calibration in the Execute step set the `Detector Type` as `Transformer`.
+
+To download the dataset use the following command:
+```bash
+ngc registry resource download-version "nvidia/amc-nv-warehouse"
+
+```
+
 In case you want to try your own dataset, please verify requirements (files, directories, formats) explained in [Assumptions](#assumptions) section.
 
 
