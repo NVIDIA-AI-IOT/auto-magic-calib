@@ -121,7 +121,7 @@
       "id": 5,
       "name": "negative-microservice-unreachable",
       "prompt": "Calibrate my cameras. Videos at /data/videos/. Microservice should be at http://localhost:8000 but I don't remember if I started it.",
-      "expected_output": "Skill probes /v1/ready, detects the microservice is not running, refuses to start calibration against an invalid URL, and points the user at setup-launch-containers to launch MS + UI first.",
+      "expected_output": "Skill probes /v1/ready, detects the microservice is not running, refuses to start calibration against an invalid URL, and points the user at setup-auto-calibration-containers to launch MS + UI first.",
       "files": [],
       "assertions": [
         {
@@ -132,7 +132,7 @@
         {
           "text": "Skill points the user at the setup skill",
           "type": "contains_phrase",
-          "phrase": "setup-launch-containers"
+          "phrase": "setup-auto-calibration-containers"
         },
         {
           "text": "Skill does not proceed with calibration when the service is down",

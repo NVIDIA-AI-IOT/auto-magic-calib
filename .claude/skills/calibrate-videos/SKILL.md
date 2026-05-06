@@ -1,12 +1,13 @@
 ---
 name: "calibrate-videos"
-description: "Calibrate a new camera rig from pre-recorded video files via the AutoMagicCalib REST API. Use when the user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', 'calibrate from video files', or similar. Requires a running AMC microservice. For RTSP/live streams, use calibrate-rtsp-streams instead."
-owner: "nvidia-automagiccalib-team"
+description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when the user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', 'calibrate from video files', or similar. Requires a running AMC microservice. For RTSP/live streams, use calibrate-rtsp-streams instead."
+owner: "nvidia-metropolis-team"
 service: "auto-magic-calib"
 version: "1.0.0"
-reviewed: "2026-04-23"
+reviewed: "2026-04-28"
+data_classification: public
 metadata:
-  author: "NVIDIA AutoMagicCalib Team"
+  author: "NVIDIA Metropolis Team"
   tags: [amc, calibration, rest-api, camera, python]
   languages: [bash, python]
   domain: calibration
@@ -22,7 +23,7 @@ For live RTSP camera streams, use `.claude/skills/calibrate-rtsp-streams/SKILL.m
 
 ## Prerequisites
 
-- [ ] AMC microservice **and** UI running (follow `.claude/skills/setup-launch-containers/SKILL.md`)
+- [ ] AMC microservice **and** UI running (follow `.claude/skills/setup-auto-calibration-containers/SKILL.md`)
 - [ ] You know the microservice URL (e.g. `http://<HOST_IP>:<MS_PORT>`) and UI URL
 - [ ] Video files available locally, named `cam_00.mp4`, `cam_01.mp4`, … (time-synchronized, 1920×1080 recommended)
 - [ ] Python 3 with `requests` installed
@@ -40,7 +41,7 @@ The skill scans the **videos directory** and its **parent directory** for these 
 
 | File | Candidate filenames | UI fallback |
 |---|---|---|
-| Calibration settings | `settings.json`, `config.json`, `calibration_config.json` (UI Step 3 Download produces one of these) — if the file includes a `"detector"` (or `"detector_type"`) field with `"resnet"` or `"transformer"`, it overrides the default detector for the calibrate call | UI Step 3: Parameters — tune manually or leave defaults |
+| Calibration settings | `settings.json`, `config.json`, `calibration_config.json` (UI Step 3 Download produces one of these). When provided, this file replaces the entire UI Step 3 Parameters dialog — every parameter the user wants tuned (rectification, bundle-adjustment, evaluation, detector, …) lives in this file, so users without the UI handy can drive everything from the local file. The skill additionally parses the file for `"detector"` / `"detector_type"` (`"resnet"` or `"transformer"`) and passes that value to the calibrate call, since the detector is a separate API parameter on `/calibrate`, not driven by `/config`. | UI Step 3: Parameters — tune manually or leave defaults |
 | Alignment JSON | `alignment_data.json` | UI Step 4: Alignment — mark correspondence points |
 | Layout PNG | `layout.png` | UI Step 4: Alignment — upload layout image |
 
@@ -92,7 +93,7 @@ For each of calibration-settings, alignment, and layout, run this resolution:
 
 For each file that was resolved locally:
 
-**Calibration settings** (resolved via scan or user path):
+**Calibration settings** (resolved via scan or user path) — posting this file replaces what the user would otherwise tune in UI Step 3 (rectification, bundle-adjustment, evaluation knobs, detector, …):
 ```
 POST /v1/config/<project_id>
 Content-Type: application/json
@@ -100,6 +101,8 @@ Content-Type: application/json
 <file contents, posted as-is>
 ```
 Non-2xx is surfaced — do not silently fall back. Skip this call if the user chose the UI-fallback path.
+
+After a successful POST, also parse the file for `"detector"` / `"detector_type"` — if it's `"resnet"` or `"transformer"`, use that value for the `/calibrate` call in Step 7 (detector is a separate API parameter, not consumed by `/config`).
 
 **Alignment JSON**:
 ```
@@ -136,7 +139,7 @@ Wait for user confirmation. For alignment/layout, verify on disk before continui
 
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
-# Resolve PROJECT_DIR from compose/.env (default: projects/ at repo root)
+# Resolve PROJECT_DIR from compose/.env (default: projects/ at repo root).
 PROJECT_DIR_REL=$(grep ^PROJECT_DIR "$REPO_ROOT/compose/.env" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')
 HOST_PROJECTS=$(cd "$REPO_ROOT/compose" && realpath "${PROJECT_DIR_REL:-../../projects}")
 
@@ -214,11 +217,13 @@ PROJECT_NAME   = "my_calibration_run"
 VIDEO_DIR      = Path("/path/to/videos")
 # Optional explicit overrides (leave as None to trigger auto-scan, then ask-user, then UI fallback)
 CONFIG_FILE    = None                                   # e.g. Path("/path/to/settings.json")
+                                                        # Full settings override — replaces UI Step 3 (rectification, BA, eval, detector, ...).
+                                                        # If the file pins a detector, it's also extracted for the calibrate call below.
 ALIGNMENT_JSON = None                                   # e.g. Path("/path/to/alignment_data.json")
 LAYOUT_PNG     = None                                   # e.g. Path("/path/to/layout.png")
 GT_ZIP         = None                                   # optional: Path("/path/to/GT.zip")
 FOCAL_LENGTHS  = None                                   # optional: [1269.0, 1099.5]
-DETECTOR_TYPE  = "resnet"                               # "resnet" or "transformer"
+DETECTOR_TYPE  = "resnet"                               # "resnet" or "transformer" (overridden if CONFIG_FILE pins it)
 RUN_VGGT       = False
 
 # Projects dir on the host (for verifying manual alignment output).
@@ -277,8 +282,9 @@ if CONFIG_FILE and CONFIG_FILE.exists():
                data=CONFIG_FILE.read_bytes(),
                headers={"Content-Type": "application/json"})
     r.raise_for_status()
-    print(f"[3] Applied calibration config from {CONFIG_FILE.name}")
-    # If the config file pins a detector, honor it over the DETECTOR_TYPE default above.
+    print(f"[3] Applied calibration config from {CONFIG_FILE.name} (full settings override; replaces UI Step 3)")
+    # Detector lives in the same file but is consumed via the separate /calibrate parameter,
+    # so additionally extract it here and use it in Step 7.
     try:
         import json as _json
         _cfg = _json.loads(CONFIG_FILE.read_text())
@@ -450,12 +456,10 @@ Downstream skill flow:
 3. `GET /v1/result/{project_id}/mv3dt_result?result_type=amc` — save the ZIP locally.
 4. If VGGT also ran, optionally fetch `?result_type=vggt` for the refined MV3DT.
 
-See root `README.md` section describing the `{project_name}_mv3dt.zip` output for the user-facing version of this export.
-
 ## Related Skills
 
-- `.claude/skills/setup-launch-containers/SKILL.md` — start MS + UI first.
-- `.claude/skills/test-sample-dataset/SKILL.md` — verify the stack with the bundled sample before trying your own.
+- `.claude/skills/setup-auto-calibration-containers/SKILL.md` — start MS + UI first.
+- `.claude/skills/calibrate-sample-dataset/SKILL.md` — verify the stack with the bundled sample before trying your own.
 - `.claude/skills/calibrate-rtsp-streams/SKILL.md` — same calibration, but sourcing footage from live RTSP streams via VIOS instead of local MP4s.
 
 Root `README.md` "Custom Dataset" and "Calibration Workflow (UI)" sections document input-video guidelines and the UI-driven alternative to this API flow.

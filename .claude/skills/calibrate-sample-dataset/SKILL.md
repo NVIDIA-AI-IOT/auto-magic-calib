@@ -1,46 +1,51 @@
 ---
-name: "test-sample-dataset"
-description: "Run end-to-end calibration on the shipped sample dataset (assets/sdg_08_2_sample_data_010926.zip) against a running AMC microservice. Use when user says 'test sample dataset', 'run sample calibration', 'verify AMC install', or 'launch and test'."
-owner: "nvidia-automagiccalib-team"
+name: "calibrate-sample-dataset"
+description: "Run end-to-end calibration on the shipped sample dataset (sdg_08_2_sample_data_010926.zip) against a running AMC microservice. Use when user says 'test sample dataset', 'run sample calibration', 'verify AMC install', or 'launch and test'."
+owner: "nvidia-metropolis-team"
 service: "auto-magic-calib"
 version: "1.0.0"
-reviewed: "2026-04-22"
+reviewed: "2026-04-28"
+data_classification: public
 metadata:
-  author: "NVIDIA AutoMagicCalib Team"
+  author: "NVIDIA Metropolis Team"
   tags: [amc, calibration, sample, rest-api, validation, python]
   languages: [python, bash]
   domain: calibration
 ---
 
-# Skill: Test Sample Dataset
+# Skill: Calibrate Sample Dataset
 
 ## Purpose
 
-Run a full calibration on the bundled sample dataset (`assets/sdg_08_2_sample_data_010926.zip`, 4 synthetic warehouse cameras with ground truth) against a running AutoMagicCalib microservice. Useful for verifying that a freshly-launched stack works end-to-end before throwing real data at it.
+Run a full calibration on the bundled sample dataset (`sdg_08_2_sample_data_010926.zip`, 4 synthetic warehouse cameras with ground truth) against a running AutoMagicCalib microservice. Useful for verifying that a freshly-launched stack works end-to-end before throwing real data at it.
 
 The sample includes GT, so the run produces evaluation metrics (L2 distance, reprojection error) — no calibration parameter tuning needed.
 
 ## Prerequisites
 
-- [ ] AMC microservice running (follow `.claude/skills/setup-launch-containers/SKILL.md` if not)
-- [ ] `assets/sdg_08_2_sample_data_010926.zip` present in the repo
-- [ ] Python 3 with `requests` installed (`pip install requests`) — or use the Swagger UI path below
+- [ ] AMC microservice running (follow `.claude/skills/setup-auto-calibration-containers/SKILL.md` if not)
+- [ ] Sample zip present at `assets/sdg_08_2_sample_data_010926.zip`
+- [ ] Python 3 with `requests` available — or use the Swagger UI path below
+  - The inline run block self-heals: if `requests` is missing it creates a throwaway venv under `${TMPDIR:-/tmp}/amc-sample-test-venv` (nothing written to the repo)
+  - If `python3 -m venv` itself fails with `ensurepip not available`: `sudo apt install -y python3-venv python3-pip`
 
 ## Quick Start for Agents
 
 **"launch AMC and test sample dataset" (or similar):**
 
-1. Run `.claude/skills/setup-launch-containers/SKILL.md` first.
+1. Run `.claude/skills/setup-auto-calibration-containers/SKILL.md` first.
 2. Wait for `/v1/ready` to return OK.
-3. Run the Python script below with `BASE_URL=http://localhost:${MS_PORT}`.
-4. Report final metrics + UI URL for manual inspection.
+3. Extract sample data (snippet below) — idempotent, safe to re-run.
+4. Run the inline block in [Run Inline (No File Written)](#run-inline-no-file-written). Do **not** save it as a `.py` file — pipe via heredoc so the user's repo stays clean.
+5. Report final metrics + UI URL for manual inspection.
 
 **"test sample dataset" (MS already running):**
 
 1. Detect backend: scan ports 8000–8009 for a `/v1/ready` response.
 2. If none → point to the setup skill.
-3. Run the Python script.
-4. Report metrics.
+3. Extract sample data if not already cached.
+4. Run the inline block (heredoc-piped Python — no file written).
+5. Report metrics.
 
 ### Detect Running Backend
 
@@ -51,16 +56,20 @@ for port in {8000..8009}; do
     MS_PORT=$port; break
   fi
 done
-[ -z "$MS_PORT" ] && { echo "No running backend. Run setup-launch-containers skill first."; exit 1; }
+[ -z "$MS_PORT" ] && { echo "No running backend. Run setup-auto-calibration-containers skill first."; exit 1; }
 echo "Backend on port $MS_PORT"
 ```
 
-### Extract Sample Data (idempotent)
+### Locate + Extract Sample Data (idempotent)
 
 ```bash
 export REPO_ROOT=$(git rev-parse --show-toplevel)
+
 SAMPLE_ZIP="$REPO_ROOT/assets/sdg_08_2_sample_data_010926.zip"
-SAMPLE_DIR="$REPO_ROOT/assets/.cache/sdg_08_2_sample_data_010926"
+[ -f "$SAMPLE_ZIP" ] || { echo "Sample zip not found at $SAMPLE_ZIP"; exit 1; }
+
+# Cache directory next to the zip.
+SAMPLE_DIR="$(dirname "$SAMPLE_ZIP")/.cache/sdg_08_2_sample_data_010926"
 
 if [ ! -d "$SAMPLE_DIR" ]; then
   mkdir -p "$SAMPLE_DIR"
@@ -70,11 +79,30 @@ ls "$SAMPLE_DIR"
 # Expected (possibly inside a wrapper folder): alignment_data/  GT.zip  videos/
 ```
 
-## Python Script (Primary Path)
+## Run Inline (No File Written)
 
-Copy into a file (e.g. `run_sample_test.py`) and run with `python3 run_sample_test.py`. Edit `BASE_URL` / `SAMPLE_DIR` at the top if needed.
+Run the test on the fly — pipe Python into `python3` via heredoc so nothing is saved into the user's repo. The block below is fully self-contained: it resolves `REPO_ROOT` via `git rev-parse`, reads `MS_PORT` from `.env`, picks (or creates) a Python with `requests` installed, and then pipes the inline script. It is safe to copy/paste verbatim into any shell where the AMC backend is reachable on `localhost`. To re-test, just run it again; each invocation creates a fresh project.
 
-```python
+```bash
+# Resolve env
+export REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+COMPOSE_DIR="$REPO_ROOT/compose"
+export MS_PORT="$(grep AUTO_MAGIC_CALIB_MS_PORT "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2)"
+export MS_PORT="${MS_PORT:-8000}"
+export BASE_URL="http://localhost:${MS_PORT}/v1"
+# Optional: export SAMPLE_DIR=/abs/path/to/extracted/sample to override autodetection
+
+# Pick a python3 that has `requests`; create a throwaway venv if needed (no repo files written)
+PY=python3
+"$PY" -c 'import requests' 2>/dev/null || {
+  VENV="${TMPDIR:-/tmp}/amc-sample-test-venv"
+  python3 -m venv "$VENV" 2>/dev/null \
+    || { sudo apt install -y python3-venv python3-pip && python3 -m venv "$VENV"; }
+  "$VENV/bin/pip" install --quiet requests
+  PY="$VENV/bin/python3"
+}
+
+"$PY" - <<'PY'
 import os
 import sys
 import time
@@ -82,14 +110,28 @@ from pathlib import Path
 
 import requests
 
-# --- Configuration ---
-REPO_ROOT = Path(os.environ.get("REPO_ROOT", Path(__file__).resolve().parent))
+# REPO_ROOT comes from the surrounding shell; fall back to cwd when missing
+# (no `__file__` to lean on when fed via stdin).
+REPO_ROOT = Path(os.environ.get("REPO_ROOT") or Path.cwd())
 MS_PORT = os.environ.get("MS_PORT", "8000")
 BASE_URL = os.environ.get("BASE_URL", f"http://localhost:{MS_PORT}/v1")
-SAMPLE_DIR = Path(os.environ.get(
-    "SAMPLE_DIR",
-    REPO_ROOT / "assets" / ".cache" / "sdg_08_2_sample_data_010926",
-))
+
+# Sample zip lives in assets/.
+def _find_sample_dir() -> Path:
+    candidate = REPO_ROOT / "assets" / ".cache" / "sdg_08_2_sample_data_010926"
+    if candidate.exists():
+        return candidate
+    sys.exit(
+        "Sample data not extracted. Run the extraction snippet from this skill first, "
+        "or pass SAMPLE_DIR= explicitly."
+    )
+
+# NOTE: do NOT write `Path(os.environ.get("SAMPLE_DIR", "")) or _find_sample_dir()`
+# — Path("") evaluates to Path('.') which is truthy, so the `or` never falls
+# through and the script silently picks `.` (typically the repo root). Rglobbing
+# `cam_*.mp4` from there can sweep dozens of stale videos from prior test runs.
+_env_sample = os.environ.get("SAMPLE_DIR")
+SAMPLE_DIR = Path(_env_sample).resolve() if _env_sample else _find_sample_dir()
 
 # Locate sample files (handle an optional wrapper folder from unzip)
 def _find(path: Path, name: str) -> Path:
@@ -98,12 +140,29 @@ def _find(path: Path, name: str) -> Path:
         sys.exit(f"Could not find {name} under {path}")
     return hits[0]
 
-videos = sorted(SAMPLE_DIR.rglob("cam_*.mp4"))
+# Anchor video discovery on the canonical `videos/` directory if present
+# (non-recursive). Only fall back to rglob if no `videos/` folder exists,
+# and assert a sane upper bound so a misconfigured SAMPLE_DIR fails loud
+# instead of uploading every cam_*.mp4 in the tree.
+videos_dirs = list(SAMPLE_DIR.rglob("videos"))
+videos_dir = next((d for d in videos_dirs if d.is_dir()), None)
+if videos_dir is not None:
+    videos = sorted(videos_dir.glob("cam_*.mp4"))
+else:
+    videos = sorted(SAMPLE_DIR.rglob("cam_*.mp4"))
+
 alignment = _find(SAMPLE_DIR, "alignment_data.json")
 layout = _find(SAMPLE_DIR, "layout.png")
 gt_zip = _find(SAMPLE_DIR, "GT.zip")
 
 assert len(videos) >= 2, f"Need >=2 cam_XX.mp4 under {SAMPLE_DIR}, found {len(videos)}"
+# Sample dataset has 4 cameras — bail if SAMPLE_DIR is so wide we'd upload
+# unrelated videos. Override SAMPLE_DIR explicitly if you need a different one.
+assert len(videos) <= 16, (
+    f"Found {len(videos)} cam_*.mp4 under {SAMPLE_DIR} — looks like SAMPLE_DIR "
+    "is too broad (probably picked up stale test caches). Set SAMPLE_DIR to the "
+    "extracted sample folder explicitly and re-run."
+)
 print(f"Base URL:   {BASE_URL}")
 print(f"Sample dir: {SAMPLE_DIR}")
 print(f"Videos:     {[v.name for v in videos]}")
@@ -192,25 +251,18 @@ else:
     print(f"\n[9] evaluation_statistics returned {r.status_code}: {r.text[:200]}")
 
 print(f"\nProject ID: {project_id}")
-print(f"Inspect in UI: open the project in the web UI to view results and overlay videos")
+print("Inspect in UI: open the project in the web UI to view results and overlay videos")
+PY
 ```
 
-### Running the Script
-
-```bash
-export REPO_ROOT=$(git rev-parse --show-toplevel)
-export MS_PORT=$(grep AUTO_MAGIC_CALIB_MS_PORT "$REPO_ROOT/compose/.env" | cut -d= -f2)
-export BASE_URL="http://localhost:${MS_PORT}/v1"
-
-python3 run_sample_test.py
-```
+> **Why heredoc, not a `.py` file?** The skill is meant to run on demand against any user's checkout — writing `run_sample_test.py` into the repo would dirty their working tree. The `<<'PY'` quoting prevents shell expansion inside the script. Re-run the same block any time; each run creates a fresh project.
 
 ## Alternative: Swagger UI Walkthrough
 
 The microservice exposes an interactive OpenAPI UI at **`http://<HOST_IP>:<MS_PORT>/docs`**. If you prefer clicking through the API by hand:
 
 1. Open `http://<HOST_IP>:<MS_PORT>/docs` in a browser.
-2. Unzip `assets/sdg_08_2_sample_data_010926.zip` to `assets/.cache/sdg_08_2_sample_data_010926/`.
+2. Unzip `sdg_08_2_sample_data_010926.zip` into a cache directory next to it.
 3. Execute these endpoints **in order**, copying the `project_id` from step 1 into subsequent paths:
 
    | # | Endpoint | Body / Files |
@@ -266,6 +318,7 @@ tail -F --retry "$REPO_ROOT/projects/project_${PROJECT_ID}/calibration.log"
 Or stream MS logs:
 
 ```bash
+REPO_ROOT=$(git rev-parse --show-toplevel)
 docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 ```
 
@@ -273,17 +326,18 @@ docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 
 | Issue | Fix |
 |---|---|
-| `requests` not installed | `pip install requests` (ideally inside a venv) |
+| `requests` not installed | Inside a venv: `python3 -m venv venv && ./venv/bin/pip install requests`. If `python3 -m venv` fails: `sudo apt install -y python3-venv python3-pip` first |
+| `[2] Uploaded N videos` where N >> 4 | `SAMPLE_DIR` resolved to the repo root (or another over-broad path) and `rglob("cam_*.mp4")` swept stale videos from `.cache/`, `projects/`, etc. Stop the run (`POST /v1/stop_calibration/{id}`), delete the project (`DELETE /v1/delete_project/{id}`), set `SAMPLE_DIR` explicitly to the extracted sample dir, re-run. The script anchors on `videos/` and asserts `len(videos) <= 16` to fail loud |
 | `verify_project` returns state `!= READY` | Confirm all 4 videos + alignment + layout + GT uploaded; inspect `GET /v1/get_project_info/{id}` response |
-| Sample not extracted | `unzip assets/sdg_08_2_sample_data_010926.zip -d assets/.cache/sdg_08_2_sample_data_010926/` |
-| `cam_*.mp4` glob finds 0 files | Check wrapper-folder depth: `find assets/.cache/sdg_08_2_sample_data_010926 -name "cam_*.mp4"` |
+| Sample not extracted | `unzip <repo_root>/assets/sdg_08_2_sample_data_010926.zip -d <repo_root>/assets/.cache/sdg_08_2_sample_data_010926/` |
+| `cam_*.mp4` glob finds 0 files | Check wrapper-folder depth: `find <sample_dir> -name "cam_*.mp4"` |
 | Calibration times out (>60 min) | Check `calibration.log` for "insufficient tracklets"; see root `README.md` guidelines on input videos |
 | Upload returns 413 | Raise server upload limit, or split files (sample files are <200 MB total so this is unusual) |
-| Port scan finds no backend | Backend not running — run `setup-launch-containers` skill |
+| Port scan finds no backend | Backend not running — run `setup-auto-calibration-containers` skill |
 
 ## Related Skills
 
-- `.claude/skills/setup-launch-containers/SKILL.md` — launch MS + UI (prerequisite).
+- `.claude/skills/setup-auto-calibration-containers/SKILL.md` — launch MS + UI (prerequisite).
 - `.claude/skills/calibrate-videos/SKILL.md` — run calibration on your own pre-recorded MP4s.
 - `.claude/skills/calibrate-rtsp-streams/SKILL.md` — run calibration on live RTSP streams via VIOS.
 

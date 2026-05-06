@@ -1,11 +1,11 @@
 {
-  "skill_name": "test-sample-dataset",
+  "skill_name": "calibrate-sample-dataset",
   "evals": [
     {
       "id": 1,
       "name": "happy-path-sample-test-backend-already-up",
       "prompt": "Run the sample calibration test. The microservice is already running on port 8000.",
-      "expected_output": "Skill detects the backend via /v1/ready on port 8000, extracts assets/sdg_08_2_sample_data_010926.zip into assets/.cache/ if not already extracted, creates a project, uploads the 4 cam_XX.mp4 files in sorted order, uploads alignment_data.json, layout.png, and GT.zip, verifies project state is READY, starts calibration with detector_type=resnet, polls /v1/get_project_info until COMPLETED, and prints the evaluation_statistics.",
+      "expected_output": "Skill detects the backend via /v1/ready on port 8000, locates sdg_08_2_sample_data_010926.zip in assets/, extracts it into a .cache/ subdirectory if not already extracted, creates a project, uploads the 4 cam_XX.mp4 files in sorted order, uploads alignment_data.json, layout.png, and GT.zip, verifies project state is READY, starts calibration with detector_type=resnet, polls /v1/get_project_info until COMPLETED, and prints the evaluation_statistics.",
       "files": [],
       "assertions": [
         {
@@ -34,13 +34,13 @@
       "id": 2,
       "name": "launch-and-test-combined-flow",
       "prompt": "Launch AMC and run the sample calibration test end-to-end.",
-      "expected_output": "Skill detects no backend on 8000-8009, delegates to setup-launch-containers to bring up MS + UI, waits for /v1/ready to return OK, then runs the sample-dataset pipeline and reports metrics.",
+      "expected_output": "Skill detects no backend on 8000-8009, delegates to setup-auto-calibration-containers to bring up MS + UI, waits for /v1/ready to return OK, then runs the sample-dataset pipeline and reports metrics.",
       "files": [],
       "assertions": [
         {
           "text": "Skill delegates to the setup skill when backend is not running",
           "type": "contains_phrase",
-          "phrase": "setup-launch-containers"
+          "phrase": "setup-auto-calibration-containers"
         },
         {
           "text": "Skill waits for readiness before starting the test",
@@ -92,7 +92,7 @@
       "id": 4,
       "name": "negative-backend-unreachable-and-sample-missing",
       "prompt": "Test the sample dataset. Nothing is running.",
-      "expected_output": "Skill scans ports 8000-8009, finds no backend, and instructs the user to run setup-launch-containers first. It does not attempt to start calibration against an invalid URL. If the sample zip is missing it also flags that before proceeding.",
+      "expected_output": "Skill scans ports 8000-8009, finds no backend, and instructs the user to run setup-auto-calibration-containers first. It does not attempt to start calibration against an invalid URL. If the sample zip is missing it also flags that before proceeding.",
       "files": [],
       "assertions": [
         {
@@ -108,7 +108,7 @@
         {
           "text": "Skill references the setup skill as the recovery path",
           "type": "contains_phrase",
-          "phrase": "setup-launch-containers"
+          "phrase": "setup-auto-calibration-containers"
         },
         {
           "text": "Skill does not leak hardcoded credentials while reporting the error",

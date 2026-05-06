@@ -1,12 +1,13 @@
 ---
 name: "calibrate-rtsp-streams"
-description: "Calibrate a camera rig from live RTSP streams via the AutoMagicCalib REST API. The MS records streams through VIOS, ingests the recorded clips, then runs the normal AMC calibration. Use when the user says 'calibrate RTSP streams', 'calibrate from live cameras', 'run AMC on RTSP', or provides RTSP URLs. Requires a running AMC microservice AND a reachable VIOS instance."
-owner: "nvidia-automagiccalib-team"
+description: "Calibrate a new dataset from live RTSP streams via the AutoMagicCalib REST API. The MS records streams through VIOS, ingests the recorded clips, then runs the normal AMC calibration. Use when the user says 'calibrate RTSP streams', 'calibrate from live cameras', 'run AMC on RTSP', or provides RTSP URLs. Requires a running AMC microservice AND a reachable VIOS instance."
+owner: "nvidia-metropolis-team"
 service: "auto-magic-calib"
 version: "1.0.0"
-reviewed: "2026-04-23"
+reviewed: "2026-04-28"
+data_classification: public
 metadata:
-  author: "NVIDIA AutoMagicCalib Team"
+  author: "NVIDIA Metropolis Team"
   tags: [amc, calibration, rtsp, vios, rest-api, camera, python]
   languages: [bash, python]
   domain: calibration
@@ -22,7 +23,7 @@ If your data is already in MP4 files on disk, use `.claude/skills/calibrate-vide
 
 ## Prerequisites
 
-- [ ] AMC microservice **and** UI running (follow `.claude/skills/setup-launch-containers/SKILL.md`)
+- [ ] AMC microservice **and** UI running (follow `.claude/skills/setup-auto-calibration-containers/SKILL.md`)
 - [ ] **VIOS is running and reachable** — Step 1 probes the default port `30888` first, then falls back to `VIOS_BASE_URL` from the MS container env / compose files. If none work, point the user at a VIOS setup skill if one exists, else ask them to deploy VIOS.
 - [ ] MS knows where VIOS is — `VIOS_BASE_URL` is set in the MS container's environment (via `compose/ms/compose.yml` or `compose/.env`). Required at runtime; Step 1 only uses the 30888 probe to detect whether VIOS is up locally.
 - [ ] RTSP URLs for each camera, reachable from the VIOS host.
@@ -84,7 +85,7 @@ Because there's no videos directory to anchor the scan, ask the user for the **c
 
 | File | Order | UI fallback |
 |---|---|---|
-| Calibration settings | Ask the user for a path (e.g. one exported via UI Step 3 Download). If they don't have one, skip to UI Step 3. If the file includes a `"detector"` (or `"detector_type"`) field with `"resnet"` or `"transformer"`, it overrides the default detector for the calibrate call. | UI Step 3: Parameters — tune or accept defaults |
+| Calibration settings | Ask the user for a path (e.g. one exported via UI Step 3 Download). When provided, this file replaces the entire UI Step 3 Parameters dialog — every parameter the user wants tuned (rectification, bundle-adjustment, evaluation, detector, …) lives in this file, so users without the UI handy can drive everything from the local file. The skill additionally parses the file for `"detector"` / `"detector_type"` (`"resnet"` or `"transformer"`) and passes that value to the calibrate call, since the detector is a separate API parameter on `/calibrate`, not driven by `/config`. If they don't have a file, skip to UI Step 3. | UI Step 3: Parameters — tune or accept defaults |
 | Alignment JSON | If a config path was given, scan the **same directory** for `alignment_data.json`. If exactly one match, use it; zero or multiple → ask the user; no answer → UI fallback. | UI Step 4: Alignment — mark correspondence points |
 | Layout PNG | Same scan rule, filename `layout.png`. | UI Step 4: Alignment — upload layout |
 
@@ -92,7 +93,7 @@ Because there's no videos directory to anchor the scan, ask the user for the **c
 6. **`sensor_id`** per stream — if VIOS already has the sensor registered, pass the ID to skip re-registration. Leave null and the MS auto-registers via VIOS.
 7. **Ground truth zip** (`GT.zip`), **focal lengths**, **VGGT flag** — same options as the video-file flow.
 
-Reference the dev `amc-rtsp-capture` guide for nvstreamer setup details and sensor pre-registration; from this skill's perspective a valid RTSP URL is all that's needed.
+For nvstreamer setup details and sensor pre-registration, see your VIOS deployment docs; from this skill's perspective a valid RTSP URL is all that's needed.
 
 ## Step 3 — Create Project
 
@@ -157,14 +158,14 @@ When this returns successfully, the project has the clips attached — same stat
 
 Resolve the config path (asked in Step 2) and use it as the anchor to scan for alignment + layout.
 
-**Calibration settings** (if user provided a path):
+**Calibration settings** (if user provided a path) — posting this file replaces what the user would otherwise tune in UI Step 3 (rectification, bundle-adjustment, evaluation knobs, detector, …):
 ```
 POST /v1/config/<project_id>
 Content-Type: application/json
 
 <file contents, posted as-is>
 ```
-After a successful POST, parse the file as JSON and check for `"detector"` / `"detector_type"` — if it's `"resnet"` or `"transformer"`, use that value for the calibrate call in Step 7 instead of the default.
+After a successful POST, also parse the file for `"detector"` / `"detector_type"` — if it's `"resnet"` or `"transformer"`, use that value for the `/calibrate` call in Step 7 (detector is a separate API parameter, not consumed by `/config`).
 
 **Alignment + layout** (resolved via same-dir scan of the config path, or user-provided, or UI fallback):
 ```
@@ -220,6 +221,8 @@ DURATION_SECONDS = 180                 # >= 60
 
 # Anchor file — ask user for this path. Leave None if they don't have one (→ UI Step 3 fallback).
 CONFIG_FILE    = None                                   # e.g. Path("/path/to/settings.json")
+                                                        # Full settings override — replaces UI Step 3 (rectification, BA, eval, detector, ...).
+                                                        # If the file pins a detector, it's also extracted for the calibrate call below.
 # If CONFIG_FILE is set, the skill scans its parent directory for alignment + layout.
 # These can also be set explicitly to override the scan.
 ALIGNMENT_JSON = None
@@ -296,8 +299,9 @@ if CONFIG_FILE and Path(CONFIG_FILE).exists():
                data=Path(CONFIG_FILE).read_bytes(),
                headers={"Content-Type": "application/json"})
     r.raise_for_status()
-    print(f"[6] Applied calibration config from {Path(CONFIG_FILE).name}")
-    # If the config pins a detector, honor it over the DETECTOR_TYPE default above.
+    print(f"[6] Applied calibration config from {Path(CONFIG_FILE).name} (full settings override; replaces UI Step 3)")
+    # Detector lives in the same file but is consumed via the separate /calibrate parameter,
+    # so additionally extract it here and use it in Step 7.
     try:
         import json as _json
         _cfg = _json.loads(Path(CONFIG_FILE).read_text())
@@ -409,6 +413,6 @@ Downstream flow: invoke this skill → capture `project_id` from its output → 
 
 ## Related Skills
 
-- `.claude/skills/setup-launch-containers/SKILL.md` — start MS + UI first.
+- `.claude/skills/setup-auto-calibration-containers/SKILL.md` — start MS + UI first.
 - `.claude/skills/calibrate-videos/SKILL.md` — same calibration tail, but from local MP4s instead of RTSP.
-- `.claude/skills/test-sample-dataset/SKILL.md` — sanity-check the stack end-to-end on the bundled sample (video path).
+- `.claude/skills/calibrate-sample-dataset/SKILL.md` — sanity-check the stack end-to-end on the bundled sample (video path).
