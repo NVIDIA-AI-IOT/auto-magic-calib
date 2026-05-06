@@ -39,8 +39,8 @@
       "assertions": [
         {
           "text": "Skill downloads VGGT before chowning the models directory",
-          "type": "contains_phrase",
-          "phrase": "before"
+          "type": "contains_pattern",
+          "pattern": "VGGT[\\s\\S]*?before[\\s\\S]*?(?:chown|ownership|UID\\s*1000)[\\s\\S]*?models"
         },
         {
           "text": "Skill references the VGGT HuggingFace repo",
