@@ -1,5 +1,5 @@
 ---
-name: "calibrate-rtsp-streams"
+name: "amc-run-rtsp-calibration"
 description: "Calibrate a new dataset from live RTSP streams via the AutoMagicCalib REST API. The MS records streams through VIOS, ingests the recorded clips, then runs the normal AMC calibration. Use when the user says 'calibrate RTSP streams', 'calibrate from live cameras', 'run AMC on RTSP', or provides RTSP URLs. Requires a running AMC microservice AND a reachable VIOS instance."
 owner: "nvidia-metropolis-team"
 service: "auto-magic-calib"
@@ -19,11 +19,11 @@ metadata:
 
 Run AutoMagicCalib on **live RTSP camera streams** instead of pre-recorded MP4s. The microservice uses VIOS to record a fixed-duration clip from each stream, ingests the clips into the project, and then runs the same calibration pipeline as the file-upload flow.
 
-If your data is already in MP4 files on disk, use `.claude/skills/calibrate-videos/SKILL.md` instead — it skips the VIOS step entirely.
+If your data is already in MP4 files on disk, use `.claude/skills/amc-run-video-calibration/SKILL.md` instead — it skips the VIOS step entirely.
 
 ## Prerequisites
 
-- [ ] AMC microservice **and** UI running (follow `.claude/skills/setup-auto-calibration-containers/SKILL.md`)
+- [ ] AMC microservice **and** UI running (follow `.claude/skills/amc-setup-calibration-stack/SKILL.md`)
 - [ ] **VIOS is running and reachable** — Step 1 probes the default port `30888` first, then falls back to `VIOS_BASE_URL` from the MS container env / compose files. If none work, point the user at a VIOS setup skill if one exists, else ask them to deploy VIOS.
 - [ ] MS knows where VIOS is — `VIOS_BASE_URL` is set in the MS container's environment (via `compose/ms/compose.yml` or `compose/.env`). Required at runtime; Step 1 only uses the 30888 probe to detect whether VIOS is up locally.
 - [ ] RTSP URLs for each camera, reachable from the VIOS host.
@@ -181,7 +181,7 @@ POST /v1/upload_focal_length/<project_id> focal_length=<f0>&focal_length=<f1>...
 
 **UI fallback** — for any file the user doesn't have:
 - Settings missing → UI Step 3 (Parameters), accept defaults or tune, Save.
-- Alignment/layout missing → UI Step 4 (Alignment), mark correspondence points, Save. Verify `projects/project_<id>/manual_adjustment/` contains `alignment_data.json` + `layout.png` before continuing. See `calibrate-videos/SKILL.md` Step 5 for the verification shell snippet.
+- Alignment/layout missing → UI Step 4 (Alignment), mark correspondence points, Save. Verify `projects/project_<id>/manual_adjustment/` contains `alignment_data.json` + `layout.png` before continuing. See `amc-run-video-calibration/SKILL.md` Step 5 for the verification shell snippet.
 
 ## Step 7 — Verify, Calibrate, Poll, Results
 
@@ -195,7 +195,7 @@ GET  /v1/result/<project_id>/evaluation_statistics   # only if GT uploaded
 GET  /v1/amc/calibrate/<project_id>/log              # debug log
 ```
 
-See `calibrate-videos/SKILL.md` for state table, timing expectations, and the optional VGGT refinement (Step 10).
+See `amc-run-video-calibration/SKILL.md` for state table, timing expectations, and the optional VGGT refinement (Step 10).
 
 ---
 
@@ -376,7 +376,7 @@ print(f"\nProject: {project_id}")
 
 - Capture session reaches `COMPLETED`, ingest returns success, and `GET /v1/get_project_info/{id}` shows videos attached.
 - `verify_project` returns `READY`, calibration transitions `RUNNING → COMPLETED`.
-- Evaluation metrics within thresholds (if GT uploaded); see `calibrate-videos/SKILL.md` success-criteria section.
+- Evaluation metrics within thresholds (if GT uploaded); see `amc-run-video-calibration/SKILL.md` success-criteria section.
 
 ## Troubleshooting
 
@@ -391,11 +391,11 @@ print(f"\nProject: {project_id}")
 | 400 "duration too short" | Minimum is 60 s. |
 | 404 on `/v1/rtsp/capture/{project_id}` | Project doesn't exist — create it first via `/v1/create_project`. |
 | `verify_project` not `READY` after ingest | Ingest may have partially failed; re-check `GET /v1/get_project_info/<project_id>` — ensure all expected `video_files` are listed. |
-| Calibration troubleshooting | Same as `calibrate-videos/SKILL.md` — insufficient tracklets, focal length override, VGGT not ready, etc. |
+| Calibration troubleshooting | Same as `amc-run-video-calibration/SKILL.md` — insufficient tracklets, focal length override, VGGT not ready, etc. |
 
 ## For Downstream Skills — MV3DT Export
 
-Same pattern as `calibrate-videos`: this skill returns the `project_id`; the downstream skill fetches the MV3DT archive directly from the microservice.
+Same pattern as `amc-run-video-calibration`: this skill returns the `project_id`; the downstream skill fetches the MV3DT archive directly from the microservice.
 
 ```
 GET /v1/result/{project_id}/mv3dt_result?result_type=amc
@@ -413,6 +413,6 @@ Downstream flow: invoke this skill → capture `project_id` from its output → 
 
 ## Related Skills
 
-- `.claude/skills/setup-auto-calibration-containers/SKILL.md` — start MS + UI first.
-- `.claude/skills/calibrate-videos/SKILL.md` — same calibration tail, but from local MP4s instead of RTSP.
-- `.claude/skills/calibrate-sample-dataset/SKILL.md` — sanity-check the stack end-to-end on the bundled sample (video path).
+- `.claude/skills/amc-setup-calibration-stack/SKILL.md` — start MS + UI first.
+- `.claude/skills/amc-run-video-calibration/SKILL.md` — same calibration tail, but from local MP4s instead of RTSP.
+- `.claude/skills/amc-run-sample-calibration/SKILL.md` — sanity-check the stack end-to-end on the bundled sample (video path).

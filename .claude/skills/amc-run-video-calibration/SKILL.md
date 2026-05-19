@@ -1,6 +1,6 @@
 ---
-name: "calibrate-videos"
-description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when the user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', 'calibrate from video files', or similar. Requires a running AMC microservice. For RTSP/live streams, use calibrate-rtsp-streams instead."
+name: "amc-run-video-calibration"
+description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when the user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', 'calibrate from video files', or similar. Requires a running AMC microservice. For RTSP/live streams, use amc-run-rtsp-calibration instead."
 owner: "nvidia-metropolis-team"
 service: "auto-magic-calib"
 version: "1.0.0"
@@ -19,11 +19,11 @@ metadata:
 
 Run AutoMagicCalib on user-supplied **pre-recorded video files** (MP4) by uploading them and driving calibration through the microservice REST API. No CLI scripts or Docker bind-mounts required — just a running microservice and your files.
 
-For live RTSP camera streams, use `.claude/skills/calibrate-rtsp-streams/SKILL.md` instead.
+For live RTSP camera streams, use `.claude/skills/amc-run-rtsp-calibration/SKILL.md` instead.
 
 ## Prerequisites
 
-- [ ] AMC microservice **and** UI running (follow `.claude/skills/setup-auto-calibration-containers/SKILL.md`)
+- [ ] AMC microservice **and** UI running (follow `.claude/skills/amc-setup-calibration-stack/SKILL.md`)
 - [ ] You know the microservice URL (e.g. `http://<HOST_IP>:<MS_PORT>`) and UI URL
 - [ ] Video files available locally, named `cam_00.mp4`, `cam_01.mp4`, … (time-synchronized, 1920×1080 recommended)
 - [ ] Python 3 with `requests` installed
@@ -458,8 +458,8 @@ Downstream skill flow:
 
 ## Related Skills
 
-- `.claude/skills/setup-auto-calibration-containers/SKILL.md` — start MS + UI first.
-- `.claude/skills/calibrate-sample-dataset/SKILL.md` — verify the stack with the bundled sample before trying your own.
-- `.claude/skills/calibrate-rtsp-streams/SKILL.md` — same calibration, but sourcing footage from live RTSP streams via VIOS instead of local MP4s.
+- `.claude/skills/amc-setup-calibration-stack/SKILL.md` — start MS + UI first.
+- `.claude/skills/amc-run-sample-calibration/SKILL.md` — verify the stack with the bundled sample before trying your own.
+- `.claude/skills/amc-run-rtsp-calibration/SKILL.md` — same calibration, but sourcing footage from live RTSP streams via VIOS instead of local MP4s.
 
 Root `README.md` "Custom Dataset" and "Calibration Workflow (UI)" sections document input-video guidelines and the UI-driven alternative to this API flow.

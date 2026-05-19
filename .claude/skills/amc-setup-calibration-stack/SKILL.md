@@ -1,5 +1,5 @@
 ---
-name: "setup-auto-calibration-containers"
+name: "amc-setup-calibration-stack"
 description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
 metadata:
   author: "NVIDIA Metropolis Team"
@@ -476,6 +476,6 @@ If "Yes":
 ```
 
 ## Related Skills
-- `.claude/skills/calibrate-sample-dataset/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
-- `.claude/skills/calibrate-videos/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
-- `.claude/skills/calibrate-rtsp-streams/SKILL.md` - Calibrate from live RTSP streams via VIOS
+- `.claude/skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
+- `.claude/skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
+- `.claude/skills/amc-run-rtsp-calibration/SKILL.md` - Calibrate from live RTSP streams via VIOS

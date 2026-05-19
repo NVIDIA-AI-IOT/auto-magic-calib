@@ -1,5 +1,5 @@
 ---
-name: "calibrate-sample-dataset"
+name: "amc-run-sample-calibration"
 description: "Run end-to-end calibration on the shipped sample dataset (sdg_08_2_sample_data_010926.zip) against a running AMC microservice. Use when user says 'test sample dataset', 'run sample calibration', 'verify AMC install', or 'launch and test'."
 owner: "nvidia-metropolis-team"
 service: "auto-magic-calib"
@@ -23,7 +23,7 @@ The sample includes GT, so the run produces evaluation metrics (L2 distance, rep
 
 ## Prerequisites
 
-- [ ] AMC microservice running (follow `.claude/skills/setup-auto-calibration-containers/SKILL.md` if not)
+- [ ] AMC microservice running (follow `.claude/skills/amc-setup-calibration-stack/SKILL.md` if not)
 - [ ] Sample zip present at `assets/sdg_08_2_sample_data_010926.zip`
 - [ ] Python 3 with `requests` available — or use the Swagger UI path below
   - The inline run block self-heals: if `requests` is missing it creates a throwaway venv under `${TMPDIR:-/tmp}/amc-sample-test-venv` (nothing written to the repo)
@@ -33,7 +33,7 @@ The sample includes GT, so the run produces evaluation metrics (L2 distance, rep
 
 **"launch AMC and test sample dataset" (or similar):**
 
-1. Run `.claude/skills/setup-auto-calibration-containers/SKILL.md` first.
+1. Run `.claude/skills/amc-setup-calibration-stack/SKILL.md` first.
 2. Wait for `/v1/ready` to return OK.
 3. Extract sample data (snippet below) — idempotent, safe to re-run.
 4. Run the inline block in [Run Inline (No File Written)](#run-inline-no-file-written). Do **not** save it as a `.py` file — pipe via heredoc so the user's repo stays clean.
@@ -56,7 +56,7 @@ for port in {8000..8009}; do
     MS_PORT=$port; break
   fi
 done
-[ -z "$MS_PORT" ] && { echo "No running backend. Run setup-auto-calibration-containers skill first."; exit 1; }
+[ -z "$MS_PORT" ] && { echo "No running backend. Run amc-setup-calibration-stack skill first."; exit 1; }
 echo "Backend on port $MS_PORT"
 ```
 
@@ -333,12 +333,12 @@ docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 | `cam_*.mp4` glob finds 0 files | Check wrapper-folder depth: `find <sample_dir> -name "cam_*.mp4"` |
 | Calibration times out (>60 min) | Check `calibration.log` for "insufficient tracklets"; see root `README.md` guidelines on input videos |
 | Upload returns 413 | Raise server upload limit, or split files (sample files are <200 MB total so this is unusual) |
-| Port scan finds no backend | Backend not running — run `setup-auto-calibration-containers` skill |
+| Port scan finds no backend | Backend not running — run `amc-setup-calibration-stack` skill |
 
 ## Related Skills
 
-- `.claude/skills/setup-auto-calibration-containers/SKILL.md` — launch MS + UI (prerequisite).
-- `.claude/skills/calibrate-videos/SKILL.md` — run calibration on your own pre-recorded MP4s.
-- `.claude/skills/calibrate-rtsp-streams/SKILL.md` — run calibration on live RTSP streams via VIOS.
+- `.claude/skills/amc-setup-calibration-stack/SKILL.md` — launch MS + UI (prerequisite).
+- `.claude/skills/amc-run-video-calibration/SKILL.md` — run calibration on your own pre-recorded MP4s.
+- `.claude/skills/amc-run-rtsp-calibration/SKILL.md` — run calibration on live RTSP streams via VIOS.
 
 Root `README.md` "Sample Data Setup" and "Calibration Workflow (UI)" sections cover the human-oriented path through the same sample.
