@@ -70,12 +70,17 @@ Password: "YOUR_NGC_API_KEY"
 ```
 
 ### Project Setup
-Clone the repo to your local directory.
-```bash
-# clone the repo
-git clone https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git
-cd auto-magic-calib
-```
+Clone the repository or initialize it as a submodule, then run the commands below
+from the AutoMagicCalib root directory. This is the directory that contains this
+README along with `compose/`, `assets/`, `models/`, and `projects/`.
+
+If you cloned AutoMagicCalib directly, the AutoMagicCalib root is the clone
+directory. If you are using it from the DeepStream repository, the AutoMagicCalib
+root is the `tools/auto-magic-calib` submodule directory.
+All paths in the rest of this guide are relative to the AutoMagicCalib root,
+except for `PROJECT_DIR` and `MODEL_DIR` in `compose/.env`, which Docker Compose
+resolves relative to the `compose/ms/` directory (hence the `../../` prefix in
+their defaults).
 
 #### Download and set up VGGT model
 Optionally you can download VGGT model for model based calibration
@@ -123,14 +128,14 @@ docker compose down
 ```
 
 ### Sample Data Setup
-Unzip the compressed sample data file `auto-magic-calib/assets/sdg_08_2_sample_data_010926.zip`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
+From the AutoMagicCalib directory, unzip the compressed sample data file `assets/sdg_08_2_sample_data_010926.zip`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
 1. Input video files
 2. Ground truth data
 3. BirdEyeView map image
 4. Pre-calibrated transform for BirdEyeView map
 
 ```
-~/auto-magic-calib/assets/sdg_08_2_sample_data_010926.zip
+assets/sdg_08_2_sample_data_010926.zip
 ├── alignment_data
 │   ├── alignment_data.json     # Pre-calibrated transform from `cam_00` reference frame to BirdEyeView map image 
 │   └── layout.png              # BirdEyeView map image required for visualization
