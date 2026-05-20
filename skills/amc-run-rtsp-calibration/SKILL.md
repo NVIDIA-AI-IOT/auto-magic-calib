@@ -1,35 +1,46 @@
 ---
 name: "amc-run-rtsp-calibration"
 description: "Calibrate a new dataset from live RTSP streams via the AutoMagicCalib REST API. The MS records streams through VIOS, ingests the recorded clips, then runs the normal AMC calibration. Use when the user says 'calibrate RTSP streams', 'calibrate from live cameras', 'run AMC on RTSP', or provides RTSP URLs. Requires a running AMC microservice AND a reachable VIOS instance."
-owner: "nvidia-metropolis-team"
+owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
 data_classification: public
 metadata:
-  author: "NVIDIA Metropolis Team"
+  author: "NVIDIA Corporation"
+  license: "Apache-2.0"
   tags: [amc, calibration, rtsp, vios, rest-api, camera, python]
-  languages: [bash, python]
-  domain: calibration
 ---
 
 # Skill: Calibrate from RTSP Streams
 
-## Purpose
+## When to Use This Skill
+
+Activate this skill when the user wants to calibrate from live RTSP camera streams — VIOS records fixed-duration clips and AMC calibrates them. Typical prompts:
+
+- "calibrate RTSP streams" / "calibrate from live cameras"
+- "run AMC on RTSP"
+- The user provides RTSP URLs
+
+If data is already in MP4 files on disk, use `skills/amc-run-video-calibration/SKILL.md` instead. Prerequisites: AMC microservice running **and** a reachable VIOS instance.
+
+## Overview
 
 Run AutoMagicCalib on **live RTSP camera streams** instead of pre-recorded MP4s. The microservice uses VIOS to record a fixed-duration clip from each stream, ingests the clips into the project, and then runs the same calibration pipeline as the file-upload flow.
 
-If your data is already in MP4 files on disk, use `.claude/skills/amc-run-video-calibration/SKILL.md` instead — it skips the VIOS step entirely.
+If your data is already in MP4 files on disk, use `skills/amc-run-video-calibration/SKILL.md` instead — it skips the VIOS step entirely.
 
 ## Prerequisites
 
-- [ ] AMC microservice **and** UI running (follow `.claude/skills/amc-setup-calibration-stack/SKILL.md`)
+- [ ] AMC microservice **and** UI running (follow `skills/amc-setup-calibration-stack/SKILL.md`)
 - [ ] **VIOS is running and reachable** — Step 1 probes the default port `30888` first, then falls back to `VIOS_BASE_URL` from the MS container env / compose files. If none work, point the user at a VIOS setup skill if one exists, else ask them to deploy VIOS.
 - [ ] MS knows where VIOS is — `VIOS_BASE_URL` is set in the MS container's environment (via `compose/ms/compose.yml` or `compose/.env`). Required at runtime; Step 1 only uses the 30888 probe to detect whether VIOS is up locally.
 - [ ] RTSP URLs for each camera, reachable from the VIOS host.
 - [ ] Python 3 with `requests` installed.
 
-## Step 1 — Verify VIOS Is Reachable
+## Instructions
+
+### Step 1 — Verify VIOS Is Reachable
 
 Confirm VIOS is up before doing anything else. Probe in this order — stop at the first hit:
 
@@ -65,7 +76,7 @@ fi
 ```
 
 **If VIOS still can't be reached** (all four checks failed):
-1. Look for a VIOS setup skill in this repo: `ls .claude/skills/ | grep -i vios`. If one is found (e.g. `setup-vios`), invoke it.
+1. Look for a VIOS setup skill in this repo: `ls skills/ | grep -i vios`. If one is found (e.g. `setup-vios`), invoke it.
 2. Otherwise, ask the user to deploy VIOS and share the base URL via `AskUserQuestion`. Do **not** proceed until `${VIOS_BASE_URL}/vst/api/v1/sensor/list` returns 200.
 
 **If VIOS was detected on 30888 but the MS container env is unset**, the capture endpoint will still return 503 until you add `VIOS_BASE_URL=http://<HOST_IP>:30888` to `compose/ms/compose.yml` (under `environment:`) and run `cd compose && docker compose up -d`.
@@ -382,7 +393,7 @@ print(f"\nProject: {project_id}")
 
 | Issue | Fix |
 |---|---|
-| VIOS `/vst/api/v1/sensor/list` returns connection refused | VIOS isn't running. Look for a `setup-vios` skill in `.claude/skills/`; if none, ask user to deploy VIOS and retry. |
+| VIOS `/vst/api/v1/sensor/list` returns connection refused | VIOS isn't running. Look for a `setup-vios` skill in `skills/`; if none, ask user to deploy VIOS and retry. |
 | Capture endpoint returns 503 / "VIOS not configured" | `VIOS_BASE_URL` not set in MS container env. Add it to `compose/ms/compose.yml` under `environment:` and run `cd compose && docker compose up -d`. |
 | Session stuck in `STARTING` | VIOS received the request but sensors aren't online. Check `curl ${VIOS_BASE_URL}/vst/api/v1/sensor/list` — look for `status: "online"`. Wait 20–30 s after any `sensor-ms` restart. |
 | Session stuck in `RECORDING` past `duration_seconds` | VIOS timer still running; call `POST /v1/rtsp/capture/<pid>/<sid>/stop` to end early. |
@@ -413,6 +424,6 @@ Downstream flow: invoke this skill → capture `project_id` from its output → 
 
 ## Related Skills
 
-- `.claude/skills/amc-setup-calibration-stack/SKILL.md` — start MS + UI first.
-- `.claude/skills/amc-run-video-calibration/SKILL.md` — same calibration tail, but from local MP4s instead of RTSP.
-- `.claude/skills/amc-run-sample-calibration/SKILL.md` — sanity-check the stack end-to-end on the bundled sample (video path).
+- `skills/amc-setup-calibration-stack/SKILL.md` — start MS + UI first.
+- `skills/amc-run-video-calibration/SKILL.md` — same calibration tail, but from local MP4s instead of RTSP.
+- `skills/amc-run-sample-calibration/SKILL.md` — sanity-check the stack end-to-end on the bundled sample (video path).

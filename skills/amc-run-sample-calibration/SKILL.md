@@ -1,21 +1,30 @@
 ---
 name: "amc-run-sample-calibration"
 description: "Run end-to-end calibration on the shipped sample dataset (sdg_08_2_sample_data_010926.zip) against a running AMC microservice. Use when user says 'test sample dataset', 'run sample calibration', 'verify AMC install', or 'launch and test'."
-owner: "nvidia-metropolis-team"
+owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
 data_classification: public
 metadata:
-  author: "NVIDIA Metropolis Team"
+  author: "NVIDIA Corporation"
+  license: "Apache-2.0"
   tags: [amc, calibration, sample, rest-api, validation, python]
-  languages: [python, bash]
-  domain: calibration
 ---
 
 # Skill: Calibrate Sample Dataset
 
-## Purpose
+## When to Use This Skill
+
+Activate this skill when the user wants to sanity-check a running AMC stack with the bundled sample dataset. Typical prompts:
+
+- "test the sample dataset" / "run sample calibration"
+- "verify AMC install"
+- "launch and test" (chain with `amc-setup-calibration-stack` if the MS isn't already running)
+
+Prerequisite: AMC microservice running on a port in 8000-8009. If no backend is detected, delegate to `amc-setup-calibration-stack` first.
+
+## Overview
 
 Run a full calibration on the bundled sample dataset (`sdg_08_2_sample_data_010926.zip`, 4 synthetic warehouse cameras with ground truth) against a running AutoMagicCalib microservice. Useful for verifying that a freshly-launched stack works end-to-end before throwing real data at it.
 
@@ -23,17 +32,17 @@ The sample includes GT, so the run produces evaluation metrics (L2 distance, rep
 
 ## Prerequisites
 
-- [ ] AMC microservice running (follow `.claude/skills/amc-setup-calibration-stack/SKILL.md` if not)
+- [ ] AMC microservice running (follow `skills/amc-setup-calibration-stack/SKILL.md` if not)
 - [ ] Sample zip present at `assets/sdg_08_2_sample_data_010926.zip`
 - [ ] Python 3 with `requests` available — or use the Swagger UI path below
   - The inline run block self-heals: if `requests` is missing it creates a throwaway venv under `${TMPDIR:-/tmp}/amc-sample-test-venv` (nothing written to the repo)
   - If `python3 -m venv` itself fails with `ensurepip not available`: `sudo apt install -y python3-venv python3-pip`
 
-## Quick Start for Agents
+## Instructions
 
 **"launch AMC and test sample dataset" (or similar):**
 
-1. Run `.claude/skills/amc-setup-calibration-stack/SKILL.md` first.
+1. Run `skills/amc-setup-calibration-stack/SKILL.md` first.
 2. Wait for `/v1/ready` to return OK.
 3. Extract sample data (snippet below) — idempotent, safe to re-run.
 4. Run the inline block in [Run Inline (No File Written)](#run-inline-no-file-written). Do **not** save it as a `.py` file — pipe via heredoc so the user's repo stays clean.
@@ -337,8 +346,8 @@ docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 
 ## Related Skills
 
-- `.claude/skills/amc-setup-calibration-stack/SKILL.md` — launch MS + UI (prerequisite).
-- `.claude/skills/amc-run-video-calibration/SKILL.md` — run calibration on your own pre-recorded MP4s.
-- `.claude/skills/amc-run-rtsp-calibration/SKILL.md` — run calibration on live RTSP streams via VIOS.
+- `skills/amc-setup-calibration-stack/SKILL.md` — launch MS + UI (prerequisite).
+- `skills/amc-run-video-calibration/SKILL.md` — run calibration on your own pre-recorded MP4s.
+- `skills/amc-run-rtsp-calibration/SKILL.md` — run calibration on live RTSP streams via VIOS.
 
 Root `README.md` "Sample Data Setup" and "Calibration Workflow (UI)" sections cover the human-oriented path through the same sample.

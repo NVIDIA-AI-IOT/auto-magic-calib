@@ -2,11 +2,10 @@
 name: "amc-setup-calibration-stack"
 description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
 metadata:
-  author: "NVIDIA Metropolis Team"
+  author: "NVIDIA Corporation"
+  license: "Apache-2.0"
   tags: [amc, deepstream, docker, calibration, setup, ngc]
-  languages: [bash]
-  domain: calibration
-owner: "nvidia-metropolis-team"
+owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
@@ -15,7 +14,17 @@ data_classification: public
 
 # Skill: Launch AutoMagicCalib Release Containers
 
-## Purpose
+## When to Use This Skill
+
+Activate this skill when the user wants to bring up the AutoMagicCalib stack. Typical prompts:
+
+- "launch auto calibration" / "launch AMC"
+- "start MS+UI" / "bring up the microservice and UI"
+- "set up auto-magic-calib"
+
+Prerequisite: NGC API key (the skill prompts for it). For first-time setup on a fresh machine, this also resolves or clones the `auto-magic-calib` repo after explicit user confirmation.
+
+## Overview
 Launch the AutoMagicCalib microservice (MS) and UI from pre-built release images via Docker Compose. Use this for production deployments or when you want to run the full stack (backend + web UI) without building images locally.
 
 ## Prerequisites
@@ -32,7 +41,7 @@ Launch the AutoMagicCalib microservice (MS) and UI from pre-built release images
 > ```
 > Then verify with `docker ps` before continuing.
 
-## Detailed Workflow
+## Instructions
 
 ### Step 0: Verify Docker Runs Without sudo
 
@@ -67,10 +76,13 @@ elif [ -d "$DEFAULT_CLONE_DIR/.git" ] && [ -f "$DEFAULT_CLONE_DIR/compose/compos
   REPO_ROOT="$DEFAULT_CLONE_DIR"
   echo "✓ Found existing clone at $REPO_ROOT"
 
-# 3. Nothing on disk — clone (only after asking the user, see Agent note below).
+# 3. Nothing on disk — STOP and ask the user via AskUserQuestion (see Agent note
+#    below). Do NOT clone silently from this block.
 else
-  git clone "$REPO_URL" "$DEFAULT_CLONE_DIR"
-  REPO_ROOT="$DEFAULT_CLONE_DIR"
+  echo "No auto-magic-calib checkout found. Ask the user (AskUserQuestion):"
+  echo "  Clone $REPO_URL into $DEFAULT_CLONE_DIR? [y/N]"
+  echo "On 'y' — run: git clone \"$REPO_URL\" \"$DEFAULT_CLONE_DIR\""
+  exit 1
 fi
 
 cd "$REPO_ROOT"
@@ -183,14 +195,23 @@ done
 HOST_IP=$(hostname -I | awk '{print $1}')
 echo "Host IP: $HOST_IP"
 
-# Update .env file
-cat > .env <<EOF
-AUTO_MAGIC_CALIB_MS_PORT=${MS_PORT}
-AUTO_MAGIC_CALIB_UI_PORT=${UI_PORT}
-PROJECT_DIR=../../projects
-MODEL_DIR=../../models
-HOST_IP=${HOST_IP}
-EOF
+# Update .env — preserve any keys the user has already set; back up first.
+ENV_FILE=".env"
+[ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%s)"
+touch "$ENV_FILE"
+set_env_key() {
+  local k="$1" v="$2"
+  if grep -qE "^${k}=" "$ENV_FILE"; then
+    sed -i "s|^${k}=.*|${k}=${v}|" "$ENV_FILE"
+  else
+    echo "${k}=${v}" >> "$ENV_FILE"
+  fi
+}
+set_env_key AUTO_MAGIC_CALIB_MS_PORT "${MS_PORT}"
+set_env_key AUTO_MAGIC_CALIB_UI_PORT "${UI_PORT}"
+set_env_key PROJECT_DIR "../../projects"
+set_env_key MODEL_DIR "../../models"
+set_env_key HOST_IP "${HOST_IP}"
 
 echo "✓ .env updated"
 cat .env
@@ -349,133 +370,11 @@ docker compose down
 docker compose down -v
 ```
 
-## Quick Reference for Agents
+## Reference
 
-**To autonomously launch release containers**:
-
-1. **Verify docker works without sudo**: run `docker ps`
-   - If "permission denied" → tell user to run `sudo usermod -aG docker $USER && newgrp docker` and confirm it works before continuing (https://docs.docker.com/engine/install/linux-postinstall/)
-   - If `docker ps` cannot be run from the sandbox → all subsequent Docker commands (NGC login, VGGT download, `docker compose up`) are also blocked. Ask the user to run the full Docker workflow in their terminal: NGC login, VGGT download if needed, update `.env` with all required variables (`AUTO_MAGIC_CALIB_MS_PORT`, `AUTO_MAGIC_CALIB_UI_PORT`, `HOST_IP`, `PROJECT_DIR`, `MODEL_DIR`), set permissions (`sudo chown 1000:1000 -R projects models`), and run `docker compose up -d`.
-2. **Resolve repo**: if `git rev-parse --show-toplevel` returns a path containing `compose/compose.yml`, use it. Else if `~/auto-magic-calib/compose/compose.yml` exists, use that. Else ask the user via AskUserQuestion whether to clone `https://github.com/NVIDIA-AI-IOT/auto-magic-calib` into `~/auto-magic-calib` (or a path they specify), then `git clone` and `cd` into it. Export `REPO_ROOT`.
-3. **Check venv**: look for `hf` binary in `<repo>/venv/bin/hf` or `~/venv/amc/bin/hf`; if neither exists → run Step 0c
-4. **NGC Login**: ask user for NGC API key via AskUserQuestion, then:
-   - `echo "<key>" | docker login nvcr.io --username '$oauthtoken' --password-stdin`
-5. **Check for VGGT model** (`models/vggt/vggt_1B_commercial.pt`):
-   - If found → continue
-   - If not found → **MUST ask the user** via AskUserQuestion before continuing: "VGGT model not found. Some test datasets require VGGT (`run_vggt: true`). Download it now? (~4.7GB, requires HuggingFace token) — if skipped, those tests will fail."
-     - If yes → ask for HF token via AskUserQuestion, then find `hf` binary and run: `<hf_bin> download facebook/VGGT-1B-Commercial --local-dir models/vggt/ --token <HF_TOKEN>`
-     - If no → continue (AMC-only mode, datasets with `run_vggt: true` will fail)
-6. Find available ports (MS: 8000-8009, UI: 5000-5009)
-7. Get host IP: `hostname -I | awk '{print $1}'`
-8. Update `.env`: set `AUTO_MAGIC_CALIB_MS_PORT`, `AUTO_MAGIC_CALIB_UI_PORT`, `HOST_IP`
-9. Set permissions (AFTER VGGT download): `mkdir -p projects && sudo chown 1000:1000 -R projects models`
-   > **Agent note**: If `sudo` cannot be run from within the Claude Code sandbox, ask the user to run this command in their terminal before proceeding to launch.
-10. Launch: `cd compose && docker compose up -d`
-11. Verify: `curl http://localhost:${MS_PORT}/v1/ready`
-12. Return URLs to user: `http://<HOST_IP>:<MS_PORT>` and `http://<HOST_IP>:<UI_PORT>`
-
-**Example autonomous execution**:
-```bash
-# Step 0: Verify docker works without sudo
-docker ps || { echo "ERROR: Docker requires sudo. Ask user to run: sudo usermod -aG docker \$USER && newgrp docker"; exit 1; }
-
-# Step 0b: Resolve repo (clone only AFTER asking the user via AskUserQuestion)
-REPO_URL="https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git"
-REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
-if [ -z "$REPO_DIR" ] || [ ! -f "$REPO_DIR/compose/compose.yml" ]; then
-  REPO_DIR="$HOME/auto-magic-calib"
-  [ -d "$REPO_DIR/.git" ] || git clone "$REPO_URL" "$REPO_DIR"
-fi
-cd "$REPO_DIR"
-
-# Step 0c: Ensure venv + hf CLI exist (new systems)
-HF_BIN="$(find "$REPO_DIR/venv" ~/venv/amc -name hf -type f 2>/dev/null | head -1)"
-if [ -z "$HF_BIN" ]; then
-  sudo apt install -y python3-venv python3-pip
-  python3 -m venv "$REPO_DIR/venv"
-  "$REPO_DIR/venv/bin/pip" install --upgrade pip huggingface_hub
-  HF_BIN="$REPO_DIR/venv/bin/hf"
-fi
-
-# Step 1: NGC login (ask user for key via AskUserQuestion, then:)
-echo "<NGC_API_KEY>" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-
-# Step 2: Download VGGT if needed (ask user for HF token via AskUserQuestion, then:)
-if [ ! -f models/vggt/vggt_1B_commercial.pt ]; then
-  "$HF_BIN" download facebook/VGGT-1B-Commercial \
-    --local-dir models/vggt/ \
-    --token <HF_TOKEN>
-fi
-
-# Step 3: Find available ports
-for port in {8000..8009}; do
-  if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then MS_PORT=$port; break; fi
-done
-for port in {5000..5009}; do
-  if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then UI_PORT=$port; break; fi
-done
-HOST_IP=$(hostname -I | awk '{print $1}')
-
-# Step 4: Update .env
-cat > compose/.env <<EOF
-AUTO_MAGIC_CALIB_MS_PORT=${MS_PORT}
-AUTO_MAGIC_CALIB_UI_PORT=${UI_PORT}
-PROJECT_DIR=../../projects
-MODEL_DIR=../../models
-HOST_IP=${HOST_IP}
-EOF
-
-# Step 5: Set permissions (after VGGT download)
-mkdir -p projects
-sudo chown 1000:1000 -R projects models
-
-# Step 6: Launch
-cd compose && docker compose up -d
-sleep 5
-
-# Step 7: Verify
-docker compose ps
-curl -s http://localhost:${MS_PORT}/v1/ready
-# Expected: {"code":0,"message":"VSS Auto Calibration Microservice is ready"}
-
-echo "Microservice: http://${HOST_IP}:${MS_PORT}"
-echo "Web UI:       http://${HOST_IP}:${UI_PORT}"
-```
-
-**For agents using AskUserQuestion tool**:
-
-When NGC authentication is needed:
-```
-AskUserQuestion:
-  question: "NGC authentication is required to pull container images. Please provide your NGC API key."
-  instruction: "Get your NGC API key from https://org.ngc.nvidia.com/setup/api-key"
-
-Then run:
-  echo "<user_provided_key>" | docker login nvcr.io --username '$oauthtoken' --password-stdin
-```
-
-When VGGT model is not found:
-```
-AskUserQuestion:
-  question: "VGGT model not found. VGGT provides model-based refinement (optional). Download it?"
-  options:
-    - "No, continue with AMC only (recommended)"
-    - "Yes, download VGGT (~4.7GB, requires HuggingFace token)"
-
-If "Yes":
-  AskUserQuestion:
-    question: "Please provide your HuggingFace token (hf_...). First accept the license at huggingface.co/facebook/VGGT-1B-Commercial"
-    # User provides token via Other text field
-
-  Then run (NO interactive login needed — pass token inline):
-    # Find hf binary
-    HF_BIN="$(find venv ~/venv/amc -name hf -type f 2>/dev/null | head -1)"
-    "$HF_BIN" download facebook/VGGT-1B-Commercial \
-      --local-dir models/vggt/ \
-      --token <user_provided_token>
-```
+- [`references/quick-reference.md`](references/quick-reference.md) — condensed runbook for agents: 12-step summary of the workflow above, a full example autonomous-execution shell block, and AskUserQuestion templates for NGC login and VGGT download.
 
 ## Related Skills
-- `.claude/skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
-- `.claude/skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
-- `.claude/skills/amc-run-rtsp-calibration/SKILL.md` - Calibrate from live RTSP streams via VIOS
+- `skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
+- `skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
+- `skills/amc-run-rtsp-calibration/SKILL.md` - Calibrate from live RTSP streams via VIOS
