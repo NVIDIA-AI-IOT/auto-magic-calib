@@ -102,7 +102,7 @@
       }
     ],
     "question": "Launch AutoMagicCalib. When I run docker ps I get 'permission denied while trying to connect to the Docker daemon socket'.",
-    "expected_skill": null,
+    "expected_skill": "amc-setup-calibration-stack",
     "ground_truth": "Skill detects that docker cannot run without sudo, does NOT attempt to run docker commands via sudo, and instead instructs the user to add themselves to the docker group (sudo usermod -aG docker $USER && newgrp docker) and confirm docker ps works before continuing.",
     "expected_behavior": [
       "Skill points the user to the docker group fix",
@@ -133,7 +133,7 @@
       }
     ],
     "question": "I tried launching AMC but docker compose up fails with 401 Unauthorized pulling nvcr.io/nvidia/auto-magic-calib:2.0.0.",
-    "expected_skill": null,
+    "expected_skill": "amc-setup-calibration-stack",
     "ground_truth": "Skill identifies the NGC authentication failure, asks the user to provide a valid NGC API key via AskUserQuestion, re-runs docker login nvcr.io, and then re-attempts docker compose up. Does not hardcode or print the API key.",
     "expected_behavior": [
       "Skill recognises the 401 Unauthorized as an NGC auth issue",

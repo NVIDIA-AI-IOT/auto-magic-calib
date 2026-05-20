@@ -102,7 +102,7 @@
       }
     ],
     "question": "Calibrate from rtsp://HOST:31554/cam_00. MS is up but VIOS is not.",
-    "expected_skill": null,
+    "expected_skill": "amc-run-rtsp-calibration",
     "ground_truth": "Skill probes VIOS at /vst/api/v1/sensor/list, detects it is unreachable, searches for a setup-vios skill in skills/, and if no such skill is found asks the user to deploy VIOS and provide the base URL. It refuses to call /v1/rtsp/capture until VIOS confirms healthy.",
     "expected_behavior": [
       "Skill reports that VIOS is unreachable",
@@ -175,7 +175,7 @@
       }
     ],
     "question": "Calibrate from rtsp://HOST:31554/cam_00. The capture endpoint returned 503 VIOS not configured.",
-    "expected_skill": null,
+    "expected_skill": "amc-run-rtsp-calibration",
     "ground_truth": "Skill recognises VIOS_BASE_URL is missing from the MS container environment, tells the user to add it to compose/ms/compose.yml under environment:, and run docker compose up -d from the compose directory to reload. Does not proceed with capture until the endpoint returns non-503.",
     "expected_behavior": [
       "Skill identifies the missing environment variable",

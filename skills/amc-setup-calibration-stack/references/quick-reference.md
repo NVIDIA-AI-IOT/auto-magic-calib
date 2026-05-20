@@ -37,9 +37,11 @@ REPO_URL="https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git"
 REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "$REPO_DIR" ] || [ ! -f "$REPO_DIR/compose/compose.yml" ]; then
   REPO_DIR="$HOME/auto-magic-calib"
-  if [ ! -d "$REPO_DIR/.git" ]; then
-    echo "No checkout found. Ask the user (AskUserQuestion):"
+  if [ ! -d "$REPO_DIR/.git" ] || [ ! -f "$REPO_DIR/compose/compose.yml" ]; then
+    echo "No AMC checkout at $REPO_DIR (missing .git or compose/compose.yml)."
+    echo "Ask the user (AskUserQuestion):"
     echo "  Clone $REPO_URL into $REPO_DIR? [y/N]"
+    echo "  (If $REPO_DIR exists but isn't AMC, ask for a different path or have the user move it first.)"
     echo "On 'y' — run: git clone \"$REPO_URL\" \"$REPO_DIR\""
     exit 1
   fi
@@ -69,10 +71,13 @@ fi
 for port in {8000..8009}; do
   if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then MS_PORT=$port; break; fi
 done
+[ -z "$MS_PORT" ] && { echo "ERROR: no free backend port in 8000-8009; free one or widen the range." >&2; exit 1; }
 for port in {5000..5009}; do
   if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then UI_PORT=$port; break; fi
 done
+[ -z "$UI_PORT" ] && { echo "ERROR: no free UI port in 5000-5009; free one or widen the range." >&2; exit 1; }
 HOST_IP=$(hostname -I | awk '{print $1}')
+[ -z "$HOST_IP" ] && { echo "ERROR: 'hostname -I' returned empty; no IPv4 interface detected. Set HOST_IP manually." >&2; exit 1; }
 
 # Step 4: Update compose/.env — preserve existing keys, back up first.
 ENV_FILE="compose/.env"

@@ -177,10 +177,11 @@ print(f"Sample dir: {SAMPLE_DIR}")
 print(f"Videos:     {[v.name for v in videos]}")
 
 s = requests.Session()
+DEFAULT_TIMEOUT = (10, 120)  # (connect, read) — keeps hung MS calls from blocking the 3600s budget
 
 # Step 1 — Create project
 project_name = f"sample_test_{int(time.time())}"
-r = s.post(f"{BASE_URL}/create_project", data={"project_name": project_name})
+r = s.post(f"{BASE_URL}/create_project", data={"project_name": project_name}, timeout=DEFAULT_TIMEOUT)
 r.raise_for_status()
 project_id = r.json()["project_id"]
 print(f"[1] Created project {project_name} → {project_id}")
@@ -198,14 +199,16 @@ print(f"[2] Uploaded {len(videos)} videos")
 # Step 3 — Upload alignment JSON
 with open(alignment, "rb") as f:
     r = s.post(f"{BASE_URL}/upload_alignment/{project_id}",
-               files={"alignment_file": (alignment.name, f, "application/json")})
+               files={"alignment_file": (alignment.name, f, "application/json")},
+               timeout=DEFAULT_TIMEOUT)
     r.raise_for_status()
 print(f"[3] Uploaded alignment JSON")
 
 # Step 4 — Upload layout PNG
 with open(layout, "rb") as f:
     r = s.post(f"{BASE_URL}/upload_layout/{project_id}",
-               files={"layout_file": (layout.name, f, "image/png")})
+               files={"layout_file": (layout.name, f, "image/png")},
+               timeout=DEFAULT_TIMEOUT)
     r.raise_for_status()
 print(f"[4] Uploaded layout PNG")
 
@@ -217,14 +220,15 @@ with open(gt_zip, "rb") as f:
 print(f"[5] Uploaded GT zip")
 
 # Step 6 — Verify project
-r = s.post(f"{BASE_URL}/verify_project/{project_id}")
+r = s.post(f"{BASE_URL}/verify_project/{project_id}", timeout=DEFAULT_TIMEOUT)
 r.raise_for_status()
 state = r.json()["project_state"]
 print(f"[6] verify_project → {state}")
-assert state == "READY", f"Expected READY, got {state}"
+if state != "READY":
+    raise RuntimeError(f"Expected READY, got {state}")
 
 # Step 7 — Start calibration (defaults work for this dataset)
-r = s.post(f"{BASE_URL}/calibrate/{project_id}", json={"detector_type": "resnet"})
+r = s.post(f"{BASE_URL}/calibrate/{project_id}", json={"detector_type": "resnet"}, timeout=DEFAULT_TIMEOUT)
 r.raise_for_status()
 print(f"[7] Calibration started (detector=resnet)")
 
@@ -233,7 +237,7 @@ print(f"[8] Polling (expect 10–30 min)...")
 start = time.time()
 last_state = ""
 while time.time() - start < 3600:
-    r = s.get(f"{BASE_URL}/get_project_info/{project_id}")
+    r = s.get(f"{BASE_URL}/get_project_info/{project_id}", timeout=DEFAULT_TIMEOUT)
     r.raise_for_status()
     st = r.json()["project_info"]["project_state"]
     elapsed = int(time.time() - start)
@@ -250,7 +254,7 @@ else:
     sys.exit("Timed out after 60 min")
 
 # Step 9 — Evaluation statistics (GT was uploaded, so this should return metrics)
-r = s.get(f"{BASE_URL}/result/{project_id}/evaluation_statistics")
+r = s.get(f"{BASE_URL}/result/{project_id}/evaluation_statistics", timeout=DEFAULT_TIMEOUT)
 if r.status_code == 200:
     stats = r.json().get("statistics", r.json())
     print(f"\n[9] Evaluation statistics:")

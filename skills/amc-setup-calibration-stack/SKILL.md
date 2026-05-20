@@ -1,6 +1,6 @@
 ---
 name: "amc-setup-calibration-stack"
-description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
+description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'deploy auto calibration', 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
 metadata:
   author: "NVIDIA Corporation"
   license: "Apache-2.0"
@@ -18,6 +18,7 @@ data_classification: public
 
 Activate this skill when the user wants to bring up the AutoMagicCalib stack. Typical prompts:
 
+- "deploy auto calibration"
 - "launch auto calibration" / "launch AMC"
 - "start MS+UI" / "bring up the microservice and UI"
 - "set up auto-magic-calib"
@@ -147,17 +148,19 @@ fi
 2. Create new token with "Read" access (starts with `hf_...`)
 3. Ask user for token via AskUserQuestion — do NOT ask them to run a command
 
-**Step 2c: Download** (pass token inline, no interactive login needed):
+**Step 2c: Download** (pass token via `HF_TOKEN` env var — keeps the secret out of `hf`'s argv / `ps aux`; no interactive login needed):
 ```bash
 REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$REPO_DIR"
 
 # Find the HuggingFace CLI binary (named 'hf', not 'huggingface-cli')
 HF_BIN="$(find "$REPO_DIR/venv" ~/venv/amc -name hf -type f 2>/dev/null | head -1)"
+{ [ -z "$HF_BIN" ] || [ ! -x "$HF_BIN" ]; } && { echo "ERROR: hf binary not found or not executable; install the hf CLI (Step 0c) or set HF_BIN" >&2; exit 1; }
 
-"$HF_BIN" download facebook/VGGT-1B-Commercial \
-  --local-dir models/vggt/ \
-  --token <HF_TOKEN>
+# Do NOT use --token on the command line (leaks via ps/argv). The HF CLI
+# reads HF_TOKEN from the environment automatically.
+HF_TOKEN="<HF_TOKEN>" "$HF_BIN" download facebook/VGGT-1B-Commercial \
+  --local-dir models/vggt/
 
 # Verify
 ls -lh models/vggt/vggt_1B_commercial.pt
@@ -181,6 +184,7 @@ for port in {8000..8009}; do
     break
   fi
 done
+[ -z "$MS_PORT" ] && { echo "ERROR: no free backend port in 8000-8009; free one or widen the range." >&2; exit 1; }
 
 # Find available UI port (5000-5009)
 for port in {5000..5009}; do
@@ -190,6 +194,7 @@ for port in {5000..5009}; do
     break
   fi
 done
+[ -z "$UI_PORT" ] && { echo "ERROR: no free UI port in 5000-5009; free one or widen the range." >&2; exit 1; }
 
 # Get host IP
 HOST_IP=$(hostname -I | awk '{print $1}')

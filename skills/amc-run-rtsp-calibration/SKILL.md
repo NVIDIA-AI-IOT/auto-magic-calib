@@ -63,8 +63,8 @@ fi
 
 # 1c. Fallback — grep compose files (useful when MS isn't running yet).
 if [ -z "$VIOS_BASE_URL" ]; then
-  VIOS_BASE_URL=$(grep -hR '^\s*-\?\s*VIOS_BASE_URL' "$REPO_ROOT/compose" 2>/dev/null \
-    | sed -E 's/.*VIOS_BASE_URL[=:]\s*//' | head -1)
+  VIOS_BASE_URL=$(grep -hRE '^[[:space:]]*-?[[:space:]]*VIOS_BASE_URL' "$REPO_ROOT/compose" 2>/dev/null \
+    | sed -E 's/.*VIOS_BASE_URL[=:][[:space:]]*//' | head -1)
 fi
 
 # 1d. Confirm VIOS actually responds at whatever URL we resolved.
@@ -305,6 +305,8 @@ r.raise_for_status()
 print(f"[5] Ingested clips: {r.json()}")
 
 # Step 6 — Config + alignment + layout + optional extras
+if CONFIG_FILE and not Path(CONFIG_FILE).exists():
+    raise SystemExit(f"CONFIG_FILE set but path not found: {CONFIG_FILE}")
 if CONFIG_FILE and Path(CONFIG_FILE).exists():
     r = s.post(f"{BASE_URL}/config/{project_id}",
                data=Path(CONFIG_FILE).read_bytes(),

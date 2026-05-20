@@ -372,6 +372,9 @@ while time.time() - start < 3600:
         raise RuntimeError(f"ERROR state — see log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
     time.sleep(10)
 
+if last != "COMPLETED":
+    raise RuntimeError(f"Calibration polling timed out (final state: {last!r}). See log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
+
 # Step 9 — Results
 print(f"\n[9] Results:")
 r = s.get(f"{BASE_URL}/result/{project_id}/evaluation_statistics")

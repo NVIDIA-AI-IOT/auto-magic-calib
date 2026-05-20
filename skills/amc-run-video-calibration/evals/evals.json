@@ -175,7 +175,7 @@
       }
     ],
     "question": "Calibrate my cameras. Videos at /data/videos/. Microservice should be at http://localhost:8000 but I don't remember if I started it.",
-    "expected_skill": null,
+    "expected_skill": "amc-run-video-calibration",
     "ground_truth": "Skill probes /v1/ready, detects the microservice is not running, refuses to start calibration against an invalid URL, and points the user at amc-setup-calibration-stack to launch MS + UI first.",
     "expected_behavior": [
       "Skill detects the service is unreachable",

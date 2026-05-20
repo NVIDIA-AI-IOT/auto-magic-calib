@@ -139,7 +139,7 @@
       }
     ],
     "question": "Test the sample dataset. Nothing is running.",
-    "expected_skill": null,
+    "expected_skill": "amc-run-sample-calibration",
     "ground_truth": "Skill scans ports 8000-8009, finds no backend, and instructs the user to run amc-setup-calibration-stack first. It does not attempt to start calibration against an invalid URL. If the sample zip is missing it also flags that before proceeding.",
     "expected_behavior": [
       "Skill reports the backend as not running",
