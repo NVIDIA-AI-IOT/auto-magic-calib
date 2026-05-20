@@ -14,7 +14,7 @@ Condensed runbook for autonomously launching the AutoMagicCalib release containe
 5. **Check for VGGT model** (`models/vggt/vggt_1B_commercial.pt`):
    - If found → continue
    - If not found → **MUST ask the user** via AskUserQuestion before continuing: "VGGT model not found. Some test datasets require VGGT (`run_vggt: true`). Download it now? (~4.7GB, requires HuggingFace token) — if skipped, those tests will fail."
-     - If yes → ask for HF token via AskUserQuestion, then find `hf` binary and run: `<hf_bin> download facebook/VGGT-1B-Commercial --local-dir models/vggt/ --token <HF_TOKEN>`
+     - If yes → ask for HF token via AskUserQuestion, then find `hf` binary and run: `HF_TOKEN=<HF_TOKEN> <hf_bin> download facebook/VGGT-1B-Commercial --local-dir models/vggt/` (env var, not `--token`, to avoid argv leaks)
      - If no → continue (AMC-only mode, datasets with `run_vggt: true` will fail)
 6. Find available ports (MS: 8000-8009, UI: 5000-5009)
 7. Get host IP: `hostname -I | awk '{print $1}'`
@@ -61,10 +61,10 @@ fi
 echo "<NGC_API_KEY>" | docker login nvcr.io --username '$oauthtoken' --password-stdin
 
 # Step 2: Download VGGT if needed (ask user for HF token via AskUserQuestion, then:)
+# Pass token via HF_TOKEN env var, not --token, to avoid leaking via ps/argv.
 if [ ! -f models/vggt/vggt_1B_commercial.pt ]; then
-  "$HF_BIN" download facebook/VGGT-1B-Commercial \
-    --local-dir models/vggt/ \
-    --token <HF_TOKEN>
+  HF_TOKEN="<HF_TOKEN>" "$HF_BIN" download facebook/VGGT-1B-Commercial \
+    --local-dir models/vggt/
 fi
 
 # Step 3: Find available ports
@@ -120,7 +120,7 @@ When NGC authentication is needed:
 ```
 AskUserQuestion:
   question: "NGC authentication is required to pull container images. Please provide your NGC API key."
-  instruction: "Get your NGC API key from https://org.ngc.nvidia.com/setup/api-key"
+  instruction: "Get your NGC API key from https://ngc.nvidia.com/setup/api-key"
 
 Then run:
   echo "<user_provided_key>" | docker login nvcr.io --username '$oauthtoken' --password-stdin
@@ -139,10 +139,9 @@ If "Yes":
     question: "Please provide your HuggingFace token (hf_...). First accept the license at huggingface.co/facebook/VGGT-1B-Commercial"
     # User provides token via Other text field
 
-  Then run (NO interactive login needed — pass token inline):
+  Then run (NO interactive login needed — pass token via HF_TOKEN env var, not `--token`, to avoid argv leaks):
     # Find hf binary
     HF_BIN="$(find venv ~/venv/amc -name hf -type f 2>/dev/null | head -1)"
-    "$HF_BIN" download facebook/VGGT-1B-Commercial \
-      --local-dir models/vggt/ \
-      --token <user_provided_token>
+    HF_TOKEN="<user_provided_token>" "$HF_BIN" download facebook/VGGT-1B-Commercial \
+      --local-dir models/vggt/
 ```
