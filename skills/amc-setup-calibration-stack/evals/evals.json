@@ -1,143 +1,146 @@
-[
-  {
-    "id": "1",
-    "name": "happy-path-launch-ms-and-ui",
-    "prompt": "Launch AutoMagicCalib. I have a clean clone of the repo and docker runs without sudo.",
-    "expected_output": "Skill prompts the user for an NGC API key, runs docker login nvcr.io, discovers free ports in 8000-8009 and 5000-5009, writes compose/.env with AUTO_MAGIC_CALIB_MS_PORT, AUTO_MAGIC_CALIB_UI_PORT, and HOST_IP, sets UID 1000 ownership on projects and models, runs docker compose up -d from the compose directory, verifies the microservice via /v1/ready, and reports MS, Swagger, and UI URLs.",
-    "files": [],
-    "assertions": [
-      {
-        "text": "Skill configures the .env under the compose directory",
-        "type": "contains_phrase",
-        "phrase": "compose/.env"
-      },
-      {
-        "text": "Skill verifies microservice health via /v1/ready",
-        "type": "contains_phrase",
-        "phrase": "/v1/ready"
-      },
-      {
-        "text": "Skill reports the MS URL on the discovered port",
-        "type": "contains_phrase",
-        "phrase": "AUTO_MAGIC_CALIB_MS_PORT"
-      },
-      {
-        "text": "Skill does not leak the NGC API token value in output",
-        "type": "not_contains_pattern",
-        "pattern": "nvapi-[A-Za-z0-9_\\-]{10,}"
-      }
-    ],
-    "question": "Launch AutoMagicCalib. I have a clean clone of the repo and docker runs without sudo.",
-    "expected_skill": "amc-setup-calibration-stack",
-    "ground_truth": "Skill prompts the user for an NGC API key, runs docker login nvcr.io, discovers free ports in 8000-8009 and 5000-5009, writes compose/.env with AUTO_MAGIC_CALIB_MS_PORT, AUTO_MAGIC_CALIB_UI_PORT, and HOST_IP, sets UID 1000 ownership on projects and models, runs docker compose up -d from the compose directory, verifies the microservice via /v1/ready, and reports MS, Swagger, and UI URLs.",
-    "expected_behavior": [
-      "Skill configures the .env under the compose directory",
-      "Skill verifies microservice health via /v1/ready",
-      "Skill reports the MS URL on the discovered port"
-    ]
-  },
-  {
-    "id": "2",
-    "name": "launch-with-optional-vggt-download",
-    "prompt": "Launch AMC and download VGGT so model-based calibration works. I have a HuggingFace token ready.",
-    "expected_output": "Skill checks for models/vggt/vggt_1B_commercial.pt, asks the user for a HuggingFace token via AskUserQuestion, downloads the VGGT model before setting UID 1000 ownership on models/, then continues with the normal launch flow.",
-    "files": [],
-    "assertions": [
-      {
-        "text": "Skill downloads VGGT before chowning the models directory",
-        "type": "contains_pattern",
-        "pattern": "VGGT[\\s\\S]*?before[\\s\\S]*?(?:chown|ownership|UID\\s*1000)[\\s\\S]*?models"
-      },
-      {
-        "text": "Skill references the VGGT HuggingFace repo",
-        "type": "contains_phrase",
-        "phrase": "VGGT-1B-Commercial"
-      },
-      {
-        "text": "Skill uses the hf CLI for the download",
-        "type": "contains_phrase",
-        "phrase": "hf"
-      },
-      {
-        "text": "Skill does not log the HuggingFace token value",
-        "type": "not_contains_pattern",
-        "pattern": "hf_[A-Za-z0-9]{20,}"
-      }
-    ],
-    "question": "Launch AMC and download VGGT so model-based calibration works. I have a HuggingFace token ready.",
-    "expected_skill": "amc-setup-calibration-stack",
-    "ground_truth": "Skill checks for models/vggt/vggt_1B_commercial.pt, asks the user for a HuggingFace token via AskUserQuestion, downloads the VGGT model before setting UID 1000 ownership on models/, then continues with the normal launch flow.",
-    "expected_behavior": [
-      "Skill downloads VGGT before chowning the models directory",
-      "Skill references the VGGT HuggingFace repo",
-      "Skill uses the hf CLI for the download"
-    ]
-  },
-  {
-    "id": "3",
-    "name": "negative-docker-permission-denied",
-    "prompt": "Launch AutoMagicCalib. When I run docker ps I get 'permission denied while trying to connect to the Docker daemon socket'.",
-    "expected_output": "Skill detects that docker cannot run without sudo, does NOT attempt to run docker commands via sudo, and instead instructs the user to add themselves to the docker group (sudo usermod -aG docker $USER && newgrp docker) and confirm docker ps works before continuing.",
-    "files": [],
-    "assertions": [
-      {
-        "text": "Skill points the user to the docker group fix",
-        "type": "contains_phrase",
-        "phrase": "usermod"
-      },
-      {
-        "text": "Skill waits for user confirmation before proceeding",
-        "type": "contains_phrase",
-        "phrase": "confirm"
-      },
-      {
-        "text": "Skill does not bypass docker safety with sudo",
-        "type": "not_contains",
-        "phrase": "sudo docker compose"
-      },
-      {
-        "text": "Skill does not paper over the permission error by hardcoding credentials",
-        "type": "not_contains_pattern",
-        "pattern": "password\\s*[:=]\\s*[\"'][^\"']+[\"']"
-      }
-    ],
-    "question": "Launch AutoMagicCalib. When I run docker ps I get 'permission denied while trying to connect to the Docker daemon socket'.",
-    "expected_skill": "amc-setup-calibration-stack",
-    "ground_truth": "Skill detects that docker cannot run without sudo, does NOT attempt to run docker commands via sudo, and instead instructs the user to add themselves to the docker group (sudo usermod -aG docker $USER && newgrp docker) and confirm docker ps works before continuing.",
-    "expected_behavior": [
-      "Skill points the user to the docker group fix",
-      "Skill waits for user confirmation before proceeding"
-    ]
-  },
-  {
-    "id": "4",
-    "name": "negative-invalid-ngc-credentials",
-    "prompt": "I tried launching AMC but docker compose up fails with 401 Unauthorized pulling nvcr.io/nvidia/auto-magic-calib:2.0.0.",
-    "expected_output": "Skill identifies the NGC authentication failure, asks the user to provide a valid NGC API key via AskUserQuestion, re-runs docker login nvcr.io, and then re-attempts docker compose up. Does not hardcode or print the API key.",
-    "files": [],
-    "assertions": [
-      {
-        "text": "Skill recognises the 401 Unauthorized as an NGC auth issue",
-        "type": "contains_phrase",
-        "phrase": "NGC"
-      },
-      {
-        "text": "Skill re-runs docker login instead of ignoring the failure",
-        "type": "contains_phrase",
-        "phrase": "docker login"
-      },
-      {
-        "text": "Skill does not echo the user's NGC key as a literal value",
-        "type": "not_contains_pattern",
-        "pattern": "(api[_\\-]?key|apikey)\\s*[:=]\\s*[\"']?[A-Za-z0-9+/=_\\-]{20,}"
-      }
-    ],
-    "question": "I tried launching AMC but docker compose up fails with 401 Unauthorized pulling nvcr.io/nvidia/auto-magic-calib:2.0.0.",
-    "expected_skill": "amc-setup-calibration-stack",
-    "ground_truth": "Skill identifies the NGC authentication failure, asks the user to provide a valid NGC API key via AskUserQuestion, re-runs docker login nvcr.io, and then re-attempts docker compose up. Does not hardcode or print the API key.",
-    "expected_behavior": [
-      "Skill recognises the 401 Unauthorized as an NGC auth issue",
-      "Skill re-runs docker login instead of ignoring the failure"
-    ]
-  }
-]
+{
+  "skill_name": "amc-setup-calibration-stack",
+  "evals": [
+    {
+      "id": "1",
+      "name": "happy-path-launch-ms-and-ui",
+      "prompt": "Launch AutoMagicCalib. I have a clean clone of the repo and docker runs without sudo.",
+      "expected_output": "Skill prompts the user for an NGC API key, runs docker login nvcr.io, discovers free ports in 8000-8009 and 5000-5009, writes compose/.env with AUTO_MAGIC_CALIB_MS_PORT, AUTO_MAGIC_CALIB_UI_PORT, and HOST_IP, sets UID 1000 ownership on projects and models, runs docker compose up -d from the compose directory, verifies the microservice via /v1/ready, and reports MS, Swagger, and UI URLs.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Skill configures the .env under the compose directory",
+          "type": "contains_phrase",
+          "phrase": "compose/.env"
+        },
+        {
+          "text": "Skill verifies microservice health via /v1/ready",
+          "type": "contains_phrase",
+          "phrase": "/v1/ready"
+        },
+        {
+          "text": "Skill reports the MS URL on the discovered port",
+          "type": "contains_phrase",
+          "phrase": "AUTO_MAGIC_CALIB_MS_PORT"
+        },
+        {
+          "text": "Skill does not leak the NGC API token value in output",
+          "type": "not_contains_pattern",
+          "pattern": "nvapi-[A-Za-z0-9_\\-]{10,}"
+        }
+      ],
+      "question": "Launch AutoMagicCalib. I have a clean clone of the repo and docker runs without sudo.",
+      "expected_skill": "amc-setup-calibration-stack",
+      "ground_truth": "Skill prompts the user for an NGC API key, runs docker login nvcr.io, discovers free ports in 8000-8009 and 5000-5009, writes compose/.env with AUTO_MAGIC_CALIB_MS_PORT, AUTO_MAGIC_CALIB_UI_PORT, and HOST_IP, sets UID 1000 ownership on projects and models, runs docker compose up -d from the compose directory, verifies the microservice via /v1/ready, and reports MS, Swagger, and UI URLs.",
+      "expected_behavior": [
+        "Skill configures the .env under the compose directory",
+        "Skill verifies microservice health via /v1/ready",
+        "Skill reports the MS URL on the discovered port"
+      ]
+    },
+    {
+      "id": "2",
+      "name": "launch-with-optional-vggt-download",
+      "prompt": "Launch AMC and download VGGT so model-based calibration works. I have a HuggingFace token ready.",
+      "expected_output": "Skill checks for models/vggt/vggt_1B_commercial.pt, asks the user for a HuggingFace token via AskUserQuestion, downloads the VGGT model before setting UID 1000 ownership on models/, then continues with the normal launch flow.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Skill downloads VGGT before chowning the models directory",
+          "type": "contains_pattern",
+          "pattern": "VGGT[\\s\\S]*?before[\\s\\S]*?(?:chown|ownership|UID\\s*1000)[\\s\\S]*?models"
+        },
+        {
+          "text": "Skill references the VGGT HuggingFace repo",
+          "type": "contains_phrase",
+          "phrase": "VGGT-1B-Commercial"
+        },
+        {
+          "text": "Skill uses the hf CLI for the download",
+          "type": "contains_phrase",
+          "phrase": "hf"
+        },
+        {
+          "text": "Skill does not log the HuggingFace token value",
+          "type": "not_contains_pattern",
+          "pattern": "hf_[A-Za-z0-9]{20,}"
+        }
+      ],
+      "question": "Launch AMC and download VGGT so model-based calibration works. I have a HuggingFace token ready.",
+      "expected_skill": "amc-setup-calibration-stack",
+      "ground_truth": "Skill checks for models/vggt/vggt_1B_commercial.pt, asks the user for a HuggingFace token via AskUserQuestion, downloads the VGGT model before setting UID 1000 ownership on models/, then continues with the normal launch flow.",
+      "expected_behavior": [
+        "Skill downloads VGGT before chowning the models directory",
+        "Skill references the VGGT HuggingFace repo",
+        "Skill uses the hf CLI for the download"
+      ]
+    },
+    {
+      "id": "3",
+      "name": "negative-docker-permission-denied",
+      "prompt": "Launch AutoMagicCalib. When I run docker ps I get 'permission denied while trying to connect to the Docker daemon socket'.",
+      "expected_output": "Skill detects that docker cannot run without sudo, does NOT attempt to run docker commands via sudo, and instead instructs the user to add themselves to the docker group (sudo usermod -aG docker $USER && newgrp docker) and confirm docker ps works before continuing.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Skill points the user to the docker group fix",
+          "type": "contains_phrase",
+          "phrase": "usermod"
+        },
+        {
+          "text": "Skill waits for user confirmation before proceeding",
+          "type": "contains_phrase",
+          "phrase": "confirm"
+        },
+        {
+          "text": "Skill does not bypass docker safety with sudo",
+          "type": "not_contains",
+          "phrase": "sudo docker compose"
+        },
+        {
+          "text": "Skill does not paper over the permission error by hardcoding credentials",
+          "type": "not_contains_pattern",
+          "pattern": "password\\s*[:=]\\s*[\"'][^\"']+[\"']"
+        }
+      ],
+      "question": "Launch AutoMagicCalib. When I run docker ps I get 'permission denied while trying to connect to the Docker daemon socket'.",
+      "expected_skill": "amc-setup-calibration-stack",
+      "ground_truth": "Skill detects that docker cannot run without sudo, does NOT attempt to run docker commands via sudo, and instead instructs the user to add themselves to the docker group (sudo usermod -aG docker $USER && newgrp docker) and confirm docker ps works before continuing.",
+      "expected_behavior": [
+        "Skill points the user to the docker group fix",
+        "Skill waits for user confirmation before proceeding"
+      ]
+    },
+    {
+      "id": "4",
+      "name": "negative-invalid-ngc-credentials",
+      "prompt": "I tried launching AMC but docker compose up fails with 401 Unauthorized pulling nvcr.io/nvidia/auto-magic-calib:2.0.0.",
+      "expected_output": "Skill identifies the NGC authentication failure, asks the user to provide a valid NGC API key via AskUserQuestion, re-runs docker login nvcr.io, and then re-attempts docker compose up. Does not hardcode or print the API key.",
+      "files": [],
+      "assertions": [
+        {
+          "text": "Skill recognises the 401 Unauthorized as an NGC auth issue",
+          "type": "contains_phrase",
+          "phrase": "NGC"
+        },
+        {
+          "text": "Skill re-runs docker login instead of ignoring the failure",
+          "type": "contains_phrase",
+          "phrase": "docker login"
+        },
+        {
+          "text": "Skill does not echo the user's NGC key as a literal value",
+          "type": "not_contains_pattern",
+          "pattern": "(api[_\\-]?key|apikey)\\s*[:=]\\s*[\"']?[A-Za-z0-9+/=_\\-]{20,}"
+        }
+      ],
+      "question": "I tried launching AMC but docker compose up fails with 401 Unauthorized pulling nvcr.io/nvidia/auto-magic-calib:2.0.0.",
+      "expected_skill": "amc-setup-calibration-stack",
+      "ground_truth": "Skill identifies the NGC authentication failure, asks the user to provide a valid NGC API key via AskUserQuestion, re-runs docker login nvcr.io, and then re-attempts docker compose up. Does not hardcode or print the API key.",
+      "expected_behavior": [
+        "Skill recognises the 401 Unauthorized as an NGC auth issue",
+        "Skill re-runs docker login instead of ignoring the failure"
+      ]
+    }
+  ]
+}
