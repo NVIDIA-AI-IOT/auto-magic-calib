@@ -5,9 +5,8 @@ owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
-data_classification: public
 metadata:
-  author: "Shubham Agrawal <shuagrawal@nvidia.com>"
+  author: "NVIDIA CORPORATION"
   license: "Apache-2.0"
   tags: [amc, calibration, rest-api, camera, python]
 ---

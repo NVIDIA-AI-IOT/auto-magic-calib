@@ -2,14 +2,13 @@
 name: "amc-setup-calibration-stack"
 description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'deploy auto calibration', 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
 metadata:
-  author: "Shubham Agrawal <shuagrawal@nvidia.com>"
+  author: "NVIDIA CORPORATION"
   license: "Apache-2.0"
   tags: [amc, deepstream, docker, calibration, setup, ngc]
 owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
-data_classification: public
 ---
 
 # Skill: Launch AutoMagicCalib Release Containers
