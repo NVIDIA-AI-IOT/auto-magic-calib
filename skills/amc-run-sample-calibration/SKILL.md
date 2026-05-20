@@ -7,7 +7,7 @@ version: "1.0.0"
 reviewed: "2026-04-28"
 data_classification: public
 metadata:
-  author: "NVIDIA Corporation"
+  author: "Shubham Agrawal <shuagrawal@nvidia.com>"
   license: "Apache-2.0"
   tags: [amc, calibration, sample, rest-api, validation, python]
 ---

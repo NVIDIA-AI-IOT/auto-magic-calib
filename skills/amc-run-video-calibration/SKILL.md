@@ -1,13 +1,13 @@
 ---
 name: "amc-run-video-calibration"
-description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when the user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', 'calibrate from video files', or similar. For RTSP/live streams, use amc-run-rtsp-calibration instead."
+description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', or similar. For RTSP/live streams, use amc-run-rtsp-calibration instead."
 owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
 data_classification: public
 metadata:
-  author: "NVIDIA Corporation"
+  author: "Shubham Agrawal <shuagrawal@nvidia.com>"
   license: "Apache-2.0"
   tags: [amc, calibration, rest-api, camera, python]
 ---
