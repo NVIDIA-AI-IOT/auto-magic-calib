@@ -22,13 +22,7 @@ Activate this skill when the user wants to calibrate from live RTSP camera strea
 - "run AMC on RTSP"
 - The user provides RTSP URLs
 
-If data is already in MP4 files on disk, use `skills/amc-run-video-calibration/SKILL.md` instead. Prerequisites: AMC microservice running **and** a reachable VIOS instance.
-
-## Overview
-
-Run AutoMagicCalib on **live RTSP camera streams** instead of pre-recorded MP4s. The microservice uses VIOS to record a fixed-duration clip from each stream, ingests the clips into the project, and then runs the same calibration pipeline as the file-upload flow.
-
-If your data is already in MP4 files on disk, use `skills/amc-run-video-calibration/SKILL.md` instead — it skips the VIOS step entirely.
+VIOS records a fixed-duration clip per stream, ingests them into the project, and the rest runs the same pipeline as the file-upload flow. If your data is already in MP4 files on disk, use `skills/amc-run-video-calibration/SKILL.md` instead — it skips the VIOS step entirely. Prerequisites: AMC microservice running **and** a reachable VIOS instance.
 
 ## Prerequisites
 
@@ -92,121 +86,36 @@ fi
 
 ### Anchor-File Pattern (ask config first, then auto-scan its dir for alignment)
 
-Because there's no videos directory to anchor the scan, ask the user for the **calibration settings file** first. Then look in its directory for alignment/layout:
+There's no videos directory to anchor the scan, so ask for the **calibration settings file** first, then look in its directory for alignment/layout:
 
-| File | Order | UI fallback |
+| File | Behavior | UI fallback |
 |---|---|---|
-| Calibration settings | Ask the user for a path (e.g. one exported via UI Step 3 Download). When provided, this file replaces the entire UI Step 3 Parameters dialog — every parameter the user wants tuned (rectification, bundle-adjustment, evaluation, detector, …) lives in this file, so users without the UI handy can drive everything from the local file. The skill additionally parses the file for `"detector"` / `"detector_type"` (`"resnet"` or `"transformer"`) and passes that value to the calibrate call, since the detector is a separate API parameter on `/calibrate`, not driven by `/config`. If they don't have a file, skip to UI Step 3. | UI Step 3: Parameters — tune or accept defaults |
-| Alignment JSON | If a config path was given, scan the **same directory** for `alignment_data.json`. If exactly one match, use it; zero or multiple → ask the user; no answer → UI fallback. | UI Step 4: Alignment — mark correspondence points |
+| Calibration settings | User-provided path (e.g. exported via UI Step 3 Download). Posting it replaces the UI Step 3 Parameters dialog (rectification, bundle-adjustment, evaluation, detector, …). The skill also extracts `"detector"`/`"detector_type"` (`resnet`/`transformer`) and passes it to `/calibrate` separately. | UI Step 3: Parameters — tune or accept defaults |
+| Alignment JSON | Scan the config file's directory for `alignment_data.json`. Exactly one match → use; zero or multiple → ask user → UI fallback. | UI Step 4: Alignment — mark correspondence points |
 | Layout PNG | Same scan rule, filename `layout.png`. | UI Step 4: Alignment — upload layout |
 
 ### Optional
-6. **`sensor_id`** per stream — if VIOS already has the sensor registered, pass the ID to skip re-registration. Leave null and the MS auto-registers via VIOS.
+6. **`sensor_id`** per stream — if VIOS already has it registered; else leave null and MS auto-registers via VIOS.
 7. **Ground truth zip** (`GT.zip`), **focal lengths**, **VGGT flag** — same options as the video-file flow.
 
-For nvstreamer setup details and sensor pre-registration, see your VIOS deployment docs; from this skill's perspective a valid RTSP URL is all that's needed.
+## API Sequence (Steps 3-7)
 
-## Step 3 — Create Project
+The Python script below is the source of truth for bodies and ordering; this section lists the endpoints with their semantics.
 
-```
-POST /v1/create_project
-Content-Type: application/x-www-form-urlencoded
+| Step | Endpoint | Notes |
+|---|---|---|
+| 3 — Create project | `POST /v1/create_project` (form: `project_name=…`) | Returns `project_id`. |
+| 4 — Start RTSP capture | `POST /v1/rtsp/capture/<project_id>` (JSON: `{streams, duration_seconds≥60, vios_token, ssl_verify}`) | Returns `session_id`. |
+| 5a — Poll capture | `GET /v1/rtsp/capture/<project_id>/<session_id>` every ~10 s | Lifecycle: `STARTING → RECORDING → COMPLETED → INGESTING → INGESTED`, or `ERROR` / `CANCELLED` (via `/stop`). |
+| 5b — Ingest clips | `POST /v1/rtsp/capture/<project_id>/<session_id>/ingest` | After success, the project state matches an upload-via-MP4 flow. |
+| 6a — Apply config (optional) | `POST /v1/config/<project_id>` (Content-Type: `application/json`, body = the settings JSON as-is) | Replaces the entire UI Step 3 dialog. Also parse `"detector"`/`"detector_type"` for use in Step 7. |
+| 6b — Alignment + layout | `POST /v1/upload_alignment/<project_id>` (`alignment_file=…`), `POST /v1/upload_layout/<project_id>` (`layout_file=…`) | Resolved via same-dir scan of config path; UI Step 4 fallback otherwise. |
+| 6c — Optional uploads | `POST /v1/upload_gt_file/<project_id>` (`gt_file=GT.zip`), `POST /v1/upload_focal_length/<project_id>` (`focal_length=f0&focal_length=f1…`) | Both optional. |
+| 7 — Verify, calibrate, poll, results | `POST /v1/verify_project/<project_id>` → `POST /v1/calibrate/<project_id>` (`{"detector_type":"resnet"}`) → `GET /v1/get_project_info/<project_id>` until `COMPLETED` → `GET /v1/result/<project_id>/evaluation_statistics` (only if GT uploaded) | Debug log at `GET /v1/amc/calibrate/<project_id>/log`. See `amc-run-video-calibration/SKILL.md` for state table, timing, and the optional VGGT refinement (Step 10). |
 
-project_name=<your_project_name>
-```
-
-Save the returned `project_id`.
-
-## Step 4 — Start RTSP Capture
-
-```
-POST /v1/rtsp/capture/<project_id>
-Content-Type: application/json
-
-{
-  "streams": [
-    {"rtsp_url": "rtsp://.../cam_00", "camera_name": "cam_00", "sensor_id": null},
-    {"rtsp_url": "rtsp://.../cam_01", "camera_name": "cam_01", "sensor_id": null}
-  ],
-  "duration_seconds": 180,
-  "vios_token": null,
-  "ssl_verify": false
-}
-```
-
-Response includes `session_id`. Save it.
-
-**Session lifecycle:**
-```
-STARTING → RECORDING → COMPLETED → INGESTING → INGESTED
-                                ↘ ERROR
-RECORDING → CANCELLED (via /stop)
-```
-
-## Step 5 — Poll Capture Status, Then Ingest
-
-Poll every ~10 s until session state is `COMPLETED`:
-
-```
-GET /v1/rtsp/capture/<project_id>/<session_id>
-```
-
-Then ingest the recorded clips as the project's video files:
-
-```
-POST /v1/rtsp/capture/<project_id>/<session_id>/ingest
-```
-
-When this returns successfully, the project has the clips attached — same state as if you'd called `/v1/upload_video_files/<project_id>` with local MP4s.
-
-**Need to stop early?** `POST /v1/rtsp/capture/<project_id>/<session_id>/stop` — the partial clip can still be ingested.
-
-**Other session endpoints:**
-- `GET /v1/rtsp/sessions/<project_id>` — list all sessions for a project.
-- `DELETE /v1/rtsp/session/<project_id>/<session_id>` — delete a session record.
-
-## Step 6 — Apply Config, Upload Alignment / Layout (or UI Fallback)
-
-Resolve the config path (asked in Step 2) and use it as the anchor to scan for alignment + layout.
-
-**Calibration settings** (if user provided a path) — posting this file replaces what the user would otherwise tune in UI Step 3 (rectification, bundle-adjustment, evaluation knobs, detector, …):
-```
-POST /v1/config/<project_id>
-Content-Type: application/json
-
-<file contents, posted as-is>
-```
-After a successful POST, also parse the file for `"detector"` / `"detector_type"` — if it's `"resnet"` or `"transformer"`, use that value for the `/calibrate` call in Step 7 (detector is a separate API parameter, not consumed by `/config`).
-
-**Alignment + layout** (resolved via same-dir scan of the config path, or user-provided, or UI fallback):
-```
-POST /v1/upload_alignment/<project_id>    alignment_file=<alignment_data.json>
-POST /v1/upload_layout/<project_id>       layout_file=<layout.png>
-```
-
-**Other optional uploads** (same as the video-file flow):
-```
-POST /v1/upload_gt_file/<project_id>      gt_file=<GT.zip>                 # optional
-POST /v1/upload_focal_length/<project_id> focal_length=<f0>&focal_length=<f1>...  # optional
-```
-
-**UI fallback** — for any file the user doesn't have:
-- Settings missing → UI Step 3 (Parameters), accept defaults or tune, Save.
-- Alignment/layout missing → UI Step 4 (Alignment), mark correspondence points, Save. Verify `projects/project_<id>/manual_adjustment/` contains `alignment_data.json` + `layout.png` before continuing. See `amc-run-video-calibration/SKILL.md` Step 5 for the verification shell snippet.
-
-## Step 7 — Verify, Calibrate, Poll, Results
-
-Identical to the video-file flow:
-
-```
-POST /v1/verify_project/<project_id>             # expect {"project_state": "READY"}
-POST /v1/calibrate/<project_id>                  {"detector_type": "resnet"}
-GET  /v1/get_project_info/<project_id>           # poll until state == COMPLETED
-GET  /v1/result/<project_id>/evaluation_statistics   # only if GT uploaded
-GET  /v1/amc/calibrate/<project_id>/log              # debug log
-```
-
-See `amc-run-video-calibration/SKILL.md` for state table, timing expectations, and the optional VGGT refinement (Step 10).
+**Stop early**: `POST /v1/rtsp/capture/<pid>/<sid>/stop` — the partial clip can still be ingested.
+**Other session endpoints**: `GET /v1/rtsp/sessions/<project_id>`, `DELETE /v1/rtsp/session/<project_id>/<session_id>`.
+**UI fallback for missing files**: Settings → UI Step 3 (Parameters); alignment/layout → UI Step 4 (Alignment) — verify `projects/project_<id>/manual_adjustment/` contains `alignment_data.json` + `layout.png` before continuing (see `amc-run-video-calibration/SKILL.md` Step 5).
 
 ---
 

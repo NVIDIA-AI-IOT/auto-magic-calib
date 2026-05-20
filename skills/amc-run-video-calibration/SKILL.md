@@ -1,6 +1,6 @@
 ---
 name: "amc-run-video-calibration"
-description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when the user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', 'calibrate from video files', or similar. Requires a running AMC microservice. For RTSP/live streams, use amc-run-rtsp-calibration instead."
+description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when the user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', 'calibrate from video files', or similar. For RTSP/live streams, use amc-run-rtsp-calibration instead."
 owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
@@ -21,35 +21,29 @@ Activate this skill when the user has pre-recorded MP4 files and wants to calibr
 - "calibrate my videos" / "run AMC on these videos"
 - "calibrate from video files"
 
-For live RTSP camera streams, use `skills/amc-run-rtsp-calibration/SKILL.md` instead. Prerequisite: AMC microservice running.
-
-## Overview
-
-Run AutoMagicCalib on user-supplied **pre-recorded video files** (MP4) by uploading them and driving calibration through the microservice REST API. No CLI scripts or Docker bind-mounts required — just a running microservice and your files.
-
-For live RTSP camera streams, use `skills/amc-run-rtsp-calibration/SKILL.md` instead.
+Drives calibration through the REST API on user-supplied **pre-recorded MP4 files** — no CLI scripts or Docker bind-mounts required, just a running microservice and your files. For live RTSP camera streams, use `skills/amc-run-rtsp-calibration/SKILL.md` instead. Prerequisite: AMC microservice running.
 
 ## Prerequisites
 
 - [ ] AMC microservice **and** UI running (follow `skills/amc-setup-calibration-stack/SKILL.md`)
 - [ ] You know the microservice URL (e.g. `http://<HOST_IP>:<MS_PORT>`) and UI URL
-- [ ] Video files available locally, named `cam_00.mp4`, `cam_01.mp4`, … (time-synchronized, 1920×1080 recommended)
-- [ ] Python 3 with `requests` installed
+- [ ] Video files locally as `cam_00.mp4`, `cam_01.mp4`, … time-synchronized, ~1920×1080
+- [ ] Python 3 with `requests`
 
 ## What to Ask the User
 
 ### Required
-1. **Videos directory** — a folder containing `cam_00.mp4`, `cam_01.mp4`, … (time-synchronized, 1920×1080 recommended). The skill reads `cam_*.mp4` from here and uploads them sorted alphabetically.
+1. **Videos directory** — a folder containing `cam_00.mp4`, `cam_01.mp4`, … The skill globs `cam_*.mp4` and uploads sorted alphabetically.
 2. **Microservice URL** — e.g. `http://192.168.1.100:8000`
 3. **Project name** — short descriptive string
 
 ### Auto-Detected (ask only if not found)
 
-The skill scans the **videos directory** and its **parent directory** for these files and uses them silently if exactly one match is found. Ask the user only if missing or ambiguous; if they don't have the file, fall back to the UI:
+Scanned silently in the videos directory and its parent. Ask the user only if missing or ambiguous; if they don't have the file, fall back to the UI:
 
 | File | Candidate filenames | UI fallback |
 |---|---|---|
-| Calibration settings | `settings.json`, `config.json`, `calibration_config.json` (UI Step 3 Download produces one of these). When provided, this file replaces the entire UI Step 3 Parameters dialog — every parameter the user wants tuned (rectification, bundle-adjustment, evaluation, detector, …) lives in this file, so users without the UI handy can drive everything from the local file. The skill additionally parses the file for `"detector"` / `"detector_type"` (`"resnet"` or `"transformer"`) and passes that value to the calibrate call, since the detector is a separate API parameter on `/calibrate`, not driven by `/config`. | UI Step 3: Parameters — tune manually or leave defaults |
+| Calibration settings | `settings.json`, `config.json`, `calibration_config.json` (UI Step 3 Download produces one). Posting it replaces the UI Step 3 Parameters dialog (rectification, bundle-adjustment, evaluation, detector, …). The skill also extracts `"detector"`/`"detector_type"` (`resnet`/`transformer`) and passes it to `/calibrate` separately. | UI Step 3: Parameters — tune or accept defaults |
 | Alignment JSON | `alignment_data.json` | UI Step 4: Alignment — mark correspondence points |
 | Layout PNG | `layout.png` | UI Step 4: Alignment — upload layout image |
 
