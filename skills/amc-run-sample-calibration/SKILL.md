@@ -96,7 +96,7 @@ Run the test on the fly — pipe Python into `python3` via heredoc so nothing is
 # Resolve env
 export REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 COMPOSE_DIR="$REPO_ROOT/compose"
-export MS_PORT="$(grep AUTO_MAGIC_CALIB_MS_PORT "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2)"
+export MS_PORT="${MS_PORT:-$(grep AUTO_MAGIC_CALIB_MS_PORT "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2)}"
 export MS_PORT="${MS_PORT:-8000}"
 export BASE_URL="http://localhost:${MS_PORT}/v1"
 # Optional: export SAMPLE_DIR=/abs/path/to/extracted/sample to override autodetection
