@@ -200,9 +200,16 @@ HOST_IP=$(hostname -I | awk '{print $1}')
 echo "Host IP: $HOST_IP"
 
 # Update .env — preserve any keys the user has already set; back up first.
+# .env may contain credentials, so restrict permissions on both the backup and
+# the live file (chmod 600). Add `compose/.env.bak.*` to .gitignore.
 ENV_FILE=".env"
-[ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%s)"
+if [ -f "$ENV_FILE" ]; then
+  BACKUP="${ENV_FILE}.bak.$(date +%s)"
+  cp "$ENV_FILE" "$BACKUP"
+  chmod 600 "$BACKUP"
+fi
 touch "$ENV_FILE"
+chmod 600 "$ENV_FILE"
 set_env_key() {
   local k="$1" v="$2"
   if grep -qE "^${k}=" "$ENV_FILE"; then
@@ -268,10 +275,7 @@ MS_PORT=$(grep AUTO_MAGIC_CALIB_MS_PORT $REPO_ROOT/compose/.env | cut -d= -f2)
 UI_PORT=$(grep AUTO_MAGIC_CALIB_UI_PORT $REPO_ROOT/compose/.env | cut -d= -f2)
 HOST_IP=$(grep HOST_IP $REPO_ROOT/compose/.env | cut -d= -f2)
 
-# Check containers are running (from any directory)
-docker compose -f $REPO_ROOT/compose/compose.yml ps
-
-# Check microservice health
+# Check microservice health (containers were already verified in Step 5)
 curl -s http://localhost:${MS_PORT}/v1/ready
 # Expected: {"code":0,"message":"VSS Auto Calibration Microservice is ready"}
 
@@ -285,12 +289,7 @@ echo "Web UI:       http://${HOST_IP}:${UI_PORT}"
 
 ## Success Criteria
 
-**Both containers running**:
-```bash
-docker compose -f $REPO_ROOT/compose/compose.yml ps
-# Both services should show "Up" status
-# Microservice should show "(healthy)" in STATUS column
-```
+**Both containers running** — see `docker compose ps` output from Step 5. Both services should show "Up" status; microservice should show "(healthy)" in the STATUS column.
 
 **Microservice healthy**:
 ```bash
@@ -357,9 +356,6 @@ docker compose down
 
 # Update .env and relaunch
 docker compose up -d
-
-# Check container status from any directory
-docker compose -f $REPO_ROOT/compose/compose.yml ps
 ```
 
 ## Stopping the Services
@@ -373,10 +369,6 @@ docker compose down
 # Stop and remove volumes
 docker compose down -v
 ```
-
-## Reference
-
-- [`references/quick-reference.md`](references/quick-reference.md) — condensed runbook for agents: 12-step summary of the workflow above, a full example autonomous-execution shell block, and AskUserQuestion templates for NGC login and VGGT download.
 
 ## Related Skills
 - `skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
