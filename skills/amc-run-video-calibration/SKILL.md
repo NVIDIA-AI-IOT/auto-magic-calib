@@ -1,6 +1,6 @@
 ---
 name: "amc-run-video-calibration"
-description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', or similar. For RTSP/live streams, use amc-run-rtsp-calibration instead."
+description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', or similar."
 owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
@@ -20,7 +20,7 @@ Activate this skill when the user has pre-recorded MP4 files and wants to calibr
 - "calibrate my videos" / "run AMC on these videos"
 - "calibrate from video files"
 
-Drives calibration through the REST API on user-supplied **pre-recorded MP4 files** — no CLI scripts or Docker bind-mounts required, just a running microservice and your files. For live RTSP camera streams, use `skills/amc-run-rtsp-calibration/SKILL.md` instead. Prerequisite: AMC microservice running.
+Drives calibration through the REST API on user-supplied **pre-recorded MP4 files** — no CLI scripts or Docker bind-mounts required, just a running microservice and your files. Prerequisite: AMC microservice running.
 
 ## Prerequisites
 
@@ -464,6 +464,5 @@ Downstream skill flow:
 
 - `skills/amc-setup-calibration-stack/SKILL.md` — start MS + UI first.
 - `skills/amc-run-sample-calibration/SKILL.md` — verify the stack with the bundled sample before trying your own.
-- `skills/amc-run-rtsp-calibration/SKILL.md` — same calibration, but sourcing footage from live RTSP streams via VIOS instead of local MP4s.
 
 Root `README.md` "Custom Dataset" and "Calibration Workflow (UI)" sections document input-video guidelines and the UI-driven alternative to this API flow.

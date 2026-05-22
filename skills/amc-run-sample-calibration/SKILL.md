@@ -351,6 +351,5 @@ docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 
 - `skills/amc-setup-calibration-stack/SKILL.md` — launch MS + UI (prerequisite).
 - `skills/amc-run-video-calibration/SKILL.md` — run calibration on your own pre-recorded MP4s.
-- `skills/amc-run-rtsp-calibration/SKILL.md` — run calibration on live RTSP streams via VIOS.
 
 Root `README.md` "Sample Data Setup" and "Calibration Workflow (UI)" sections cover the human-oriented path through the same sample.

@@ -373,4 +373,3 @@ docker compose down -v
 ## Related Skills
 - `skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
 - `skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
-- `skills/amc-run-rtsp-calibration/SKILL.md` - Calibrate from live RTSP streams via VIOS
