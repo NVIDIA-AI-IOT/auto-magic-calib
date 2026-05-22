@@ -9,6 +9,7 @@ owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
+license: "Apache-2.0"
 ---
 
 # Skill: Launch AutoMagicCalib Release Containers
