@@ -30,6 +30,10 @@ Drives calibration through the REST API on user-supplied **pre-recorded MP4 file
 - [ ] Video files locally as `cam_00.mp4`, `cam_01.mp4`, … time-synchronized, ~1920×1080
 - [ ] Python 3 with `requests`
 
+## Data Privacy
+
+Video files uploaded via this skill are transmitted to the AutoMagicCalib backend (REST endpoint). Only use this skill when the backend is deployed on a trusted platform / network.
+
 ## What to Ask the User
 
 ### Required

@@ -105,8 +105,10 @@ export BASE_URL="http://localhost:${MS_PORT}/v1"
 PY=python3
 "$PY" -c 'import requests' 2>/dev/null || {
   VENV="${TMPDIR:-/tmp}/amc-sample-test-venv"
-  python3 -m venv "$VENV" 2>/dev/null \
-    || { sudo apt install -y python3-venv python3-pip && python3 -m venv "$VENV"; }
+  python3 -m venv "$VENV" 2>/dev/null || {
+    echo "ERROR: python3-venv not available. Run: sudo apt install -y python3-venv python3-pip" >&2
+    exit 1
+  }
   "$VENV/bin/pip" install --quiet requests
   PY="$VENV/bin/python3"
 }
