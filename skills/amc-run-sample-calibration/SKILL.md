@@ -22,7 +22,14 @@ Activate this skill when the user wants to sanity-check a running AMC stack with
 - "verify AMC install"
 - "launch and test" (chain with `amc-setup-calibration-stack` if the MS isn't already running)
 
+**Do NOT use this skill when:**
+
+- The user references their own video paths (e.g. `/data/videos/`, `cam_*.mp4` not from the bundled zip) — route to `amc-run-video-calibration`. This skill is exclusively for `assets/sdg_08_2_sample_data_010926.zip`.
+- The user asks about live RTSP streams — out of scope.
+
 Prerequisite: AMC microservice running on a port in 8000-8009. If no backend is detected, delegate to `amc-setup-calibration-stack` first.
+
+If execution cannot proceed in the current environment (no backend, missing sample data, etc.), surface the blocker AND describe the expected workflow + API sequence concisely so the user understands what will run once prerequisites are met. Do not fabricate calibration outputs, evaluation metrics, or trajectories.
 
 ## Overview
 
@@ -273,6 +280,8 @@ PY
 > **Why heredoc, not a `.py` file?** The skill is meant to run on demand against any user's checkout — writing `run_sample_test.py` into the repo would dirty their working tree. The `<<'PY'` quoting prevents shell expansion inside the script. Re-run the same block any time; each run creates a fresh project.
 
 ## Alternative: Swagger UI Walkthrough
+
+> **Agent shortcut**: if the user explicitly requested a Swagger UI walkthrough (or said "no Python"), emit the table below and stop — do not invoke shell tooling, read other sections, or run the inline Python block.
 
 The microservice exposes an interactive OpenAPI UI at **`http://<HOST_IP>:<MS_PORT>/docs`**. If you prefer clicking through the API by hand:
 

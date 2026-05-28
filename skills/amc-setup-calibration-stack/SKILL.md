@@ -98,12 +98,14 @@ echo "REPO_ROOT=$REPO_ROOT"
 On a fresh system, `pip` and `python3-venv` may not be available. Install them first:
 
 ```bash
-sudo apt install -y python3-venv python3-pip
-
 # Create a venv for HuggingFace CLI (project-local preferred)
 REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 HF_VENV="${REPO_DIR}/venv"
-python3 -m venv "$HF_VENV"
+python3 -m venv "$HF_VENV" 2>/dev/null || {
+  echo "ERROR: python3-venv not available." >&2
+  echo "Install it manually: sudo apt install -y python3-venv python3-pip" >&2
+  exit 1
+}
 
 # Install HuggingFace hub (needed for VGGT download)
 "$HF_VENV/bin/pip" install --upgrade pip huggingface_hub
@@ -236,13 +238,22 @@ cat .env
 The containers run as UID/GID 1000. The `projects` and `models` directories must be owned by this UID for containers to read/write properly:
 
 ```bash
-cd $REPO_ROOT
+cd "$REPO_ROOT"
 
 # Create projects directory if it doesn't exist
 mkdir -p projects
 
-# Set ownership (required for containers to write calibration outputs)
-# Do this AFTER VGGT download is complete (current user needs write access during download)
+# Set ownership (required for containers to write calibration outputs).
+# Do this AFTER VGGT download is complete (current user needs write access during download).
+# Confirm the user via AskUserQuestion before running sudo chown — it recursively changes
+# ownership of $REPO_ROOT/projects and $REPO_ROOT/models to UID/GID 1000.
+[ -d projects ] && [ -d models ] || {
+  echo "ERROR: expected projects/ and models/ under $REPO_ROOT" >&2; exit 1;
+}
+echo "About to chown -R 1000:1000 on:"
+echo "  $REPO_ROOT/projects"
+echo "  $REPO_ROOT/models"
+echo "(required because containers run as UID 1000). Confirm before proceeding."
 sudo chown 1000:1000 -R projects
 sudo chown 1000:1000 -R models
 
