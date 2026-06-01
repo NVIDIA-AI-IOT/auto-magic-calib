@@ -14,7 +14,7 @@ calibration.
 
 We welcome bug reports and feature requests.
 
-**File a [GitHub issue](https://github.com/NVIDIA-AI-IOT/auto-magic-calib/issues).** - Include reproduction steps, expected vs. actual behavior, and environment details
+**File a [GitHub issue](https://github.com/NVIDIA-AI-IOT/auto-magic-calib/issues)** - Include reproduction steps, expected vs. actual behavior, and environment details
   (DeepStream version, GPU, OS, container tag).
 
 ## Asking questions
