@@ -14,13 +14,11 @@ calibration.
 
 We welcome bug reports and feature requests. Please:
 
-- **File a GitHub issue:** https://github.com/NVIDIA-AI-IOT/auto-magic-calib/issues
+- **File a [GitHub issue](https://github.com/NVIDIA-AI-IOT/auto-magic-calib/issues).**
   Include reproduction steps, expected vs. actual behavior, and environment details
   (DeepStream version, GPU, OS, container tag).
 
 ## Asking questions
 
 For usage questions, deployment help, or general discussion, please use the
-**NVIDIA DeepStream SDK Developer Forum**:
-
-https://forums.developer.nvidia.com/c/accelerated-computing/intelligent-video-analytics/deepstream-sdk/15
+[NVIDIA DeepStream SDK Developer Forum](https://forums.developer.nvidia.com/c/accelerated-computing/intelligent-video-analytics/deepstream-sdk/15).
