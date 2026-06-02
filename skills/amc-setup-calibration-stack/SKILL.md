@@ -262,8 +262,26 @@ echo "✓ Permissions set"
 
 ### Step 5: Launch Services
 
+Before pulling, fail fast if the NGC key authenticated in Step 1 but cannot actually access a release image — otherwise `docker compose up` aborts partway with a 401/403 after some work is already done.
+
 ```bash
 cd $REPO_ROOT/compose
+
+# Fail-fast image-access check: confirm the NGC key can reach every release
+# image BEFORE pulling. `docker manifest inspect` checks registry access without
+# downloading layers, and the image list is read from the resolved compose so it
+# tracks the release tag automatically.
+IMAGES=$(docker compose config --images | sort -u)
+[ -z "$IMAGES" ] && { echo "ERROR: no images resolved from compose — check compose/.env and the chosen profile." >&2; exit 1; }
+for img in $IMAGES; do
+  echo "Checking access: $img"
+  if ! docker manifest inspect "$img" >/dev/null 2>&1; then
+    echo "NGC login succeeded, but this key cannot access the required image:" >&2
+    echo "  $img" >&2
+    echo "Provide an NGC key with access to this image's namespace, then re-run Step 1 (login) and retry." >&2
+    exit 1
+  fi
+done
 
 # Start all services (images pulled automatically on first run)
 docker compose up -d
@@ -339,7 +357,8 @@ curl http://localhost:${MS_PORT}/v1/ready
 | `huggingface-cli` not found | `huggingface-cli: command not found` | The binary is named `hf` in the venv. Find it with: `find venv ~/venv/amc -name hf -type f 2>/dev/null \| head -1` |
 | `python3 -m venv` fails | "ensurepip not available" | Run `sudo apt install -y python3.12-venv` first |
 | Docker permission denied | "permission denied while trying to connect to docker socket" | User not in docker group — ask user to run: `sudo usermod -aG docker $USER && newgrp docker`. See: https://docs.docker.com/engine/install/linux-postinstall/ |
-| NGC pull fails | "401 Unauthorized" on pull | Re-run NGC login: `echo "$NGC_API_KEY" \| docker login nvcr.io --username '$oauthtoken' --password-stdin` |
+| `docker login` itself rejected | Step 1 login returns an authentication error | The key is invalid or expired. Ask the user for a current NGC key and log in again before continuing. |
+| Key logs in but can't access an image | The Step 5 access check stops with "cannot access the required image" / a 401/403 on `docker manifest inspect`, before any pull | The key authenticates but lacks access to that image's namespace. Re-running login with the same key won't help — ask the user for an NGC key with access to the required namespace, re-run Step 1, then retry Step 5. |
 | VGGT download permission error | "PermissionError: [Errno 13] Permission denied: 'models/vggt/.cache'" | Download VGGT BEFORE setting `chown 1000:1000` on models. Fix: `sudo chown -R $(id -u):$(id -g) models` then re-download |
 | Port already in use | "address already in use" | Find available port in 8000-8009 (MS) or 5000-5009 (UI); update `.env` |
 | Permission denied (projects) | "Permission denied: 'projects/...'" in MS logs | Run: `sudo chown 1000:1000 -R projects` |

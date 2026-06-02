@@ -25,7 +25,6 @@ Activate this skill when the user wants to sanity-check a running AMC stack with
 **Do NOT use this skill when:**
 
 - The user references their own video paths (e.g. `/data/videos/`, `cam_*.mp4` not from the bundled zip) — route to `amc-run-video-calibration`. This skill is exclusively for `assets/sdg_08_2_sample_data_010926.zip`.
-- The user asks about live RTSP streams — out of scope.
 
 Prerequisite: AMC microservice running on a port in 8000-8009. If no backend is detected, delegate to `amc-setup-calibration-stack` first.
 
@@ -241,23 +240,32 @@ r = s.post(f"{BASE_URL}/calibrate/{project_id}", json={"detector_type": "resnet"
 r.raise_for_status()
 print(f"[7] Calibration started (detector=resnet)")
 
-# Step 8 — Poll for completion (~10–30 min for sample)
+# Step 8 — Poll for completion (~10–30 min for sample). Print on every state
+# change, plus a heartbeat at least once a minute so a long RUNNING state still
+# shows progress.
 print(f"[8] Polling (expect 10–30 min)...")
-start = time.time()
-last_state = ""
+start, last_state, last_beat = time.time(), "", 0.0
 while time.time() - start < 3600:
     r = s.get(f"{BASE_URL}/get_project_info/{project_id}", timeout=DEFAULT_TIMEOUT)
     r.raise_for_status()
     st = r.json()["project_info"]["project_state"]
-    elapsed = int(time.time() - start)
-    if st != last_state:
-        print(f"    [{elapsed:>4}s] {st}", flush=True)
-        last_state = st
+    mins, secs = divmod(int(time.time() - start), 60)
+    if st != last_state or time.time() - last_beat >= 60:
+        print(f"    [{mins:>3}m {secs:02d}s] {st}", flush=True)
+        last_state, last_beat = st, time.time()
     if st == "COMPLETED":
-        print(f"[8] Completed in {elapsed}s")
+        print(f"[8] Completed in {mins}m {secs:02d}s")
         break
     if st == "ERROR":
-        sys.exit(f"Calibration failed. Pull log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
+        # Surface the tail of the calibration log so the failure is actionable.
+        try:
+            log_lines = s.get(f"{BASE_URL}/amc/calibrate/{project_id}/log", timeout=DEFAULT_TIMEOUT).text.splitlines()
+            print("    --- last calibration log lines ---")
+            for line in log_lines[-20:]:
+                print(f"    {line}")
+        except Exception:
+            pass
+        sys.exit(f"Calibration failed. Full log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
     time.sleep(10)
 else:
     sys.exit("Timed out after 60 min")
