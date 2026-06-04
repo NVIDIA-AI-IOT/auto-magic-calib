@@ -2,14 +2,14 @@
 name: "amc-setup-calibration-stack"
 description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'deploy auto calibration', 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
 metadata:
-  author: "NVIDIA Corporation"
+  author: "NVIDIA CORPORATION"
   license: "Apache-2.0"
   tags: [amc, deepstream, docker, calibration, setup, ngc]
 owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
-data_classification: public
+license: "Apache-2.0"
 ---
 
 # Skill: Launch AutoMagicCalib Release Containers
@@ -98,12 +98,14 @@ echo "REPO_ROOT=$REPO_ROOT"
 On a fresh system, `pip` and `python3-venv` may not be available. Install them first:
 
 ```bash
-sudo apt install -y python3-venv python3-pip
-
 # Create a venv for HuggingFace CLI (project-local preferred)
 REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 HF_VENV="${REPO_DIR}/venv"
-python3 -m venv "$HF_VENV"
+python3 -m venv "$HF_VENV" 2>/dev/null || {
+  echo "ERROR: python3-venv not available." >&2
+  echo "Install it manually: sudo apt install -y python3-venv python3-pip" >&2
+  exit 1
+}
 
 # Install HuggingFace hub (needed for VGGT download)
 "$HF_VENV/bin/pip" install --upgrade pip huggingface_hub
@@ -201,9 +203,16 @@ HOST_IP=$(hostname -I | awk '{print $1}')
 echo "Host IP: $HOST_IP"
 
 # Update .env — preserve any keys the user has already set; back up first.
+# .env may contain credentials, so restrict permissions on both the backup and
+# the live file (chmod 600). Add `compose/.env.bak.*` to .gitignore.
 ENV_FILE=".env"
-[ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak.$(date +%s)"
+if [ -f "$ENV_FILE" ]; then
+  BACKUP="${ENV_FILE}.bak.$(date +%s)"
+  cp "$ENV_FILE" "$BACKUP"
+  chmod 600 "$BACKUP"
+fi
 touch "$ENV_FILE"
+chmod 600 "$ENV_FILE"
 set_env_key() {
   local k="$1" v="$2"
   if grep -qE "^${k}=" "$ENV_FILE"; then
@@ -229,13 +238,22 @@ cat .env
 The containers run as UID/GID 1000. The `projects` and `models` directories must be owned by this UID for containers to read/write properly:
 
 ```bash
-cd $REPO_ROOT
+cd "$REPO_ROOT"
 
 # Create projects directory if it doesn't exist
 mkdir -p projects
 
-# Set ownership (required for containers to write calibration outputs)
-# Do this AFTER VGGT download is complete (current user needs write access during download)
+# Set ownership (required for containers to write calibration outputs).
+# Do this AFTER VGGT download is complete (current user needs write access during download).
+# Confirm the user via AskUserQuestion before running sudo chown — it recursively changes
+# ownership of $REPO_ROOT/projects and $REPO_ROOT/models to UID/GID 1000.
+[ -d projects ] && [ -d models ] || {
+  echo "ERROR: expected projects/ and models/ under $REPO_ROOT" >&2; exit 1;
+}
+echo "About to chown -R 1000:1000 on:"
+echo "  $REPO_ROOT/projects"
+echo "  $REPO_ROOT/models"
+echo "(required because containers run as UID 1000). Confirm before proceeding."
 sudo chown 1000:1000 -R projects
 sudo chown 1000:1000 -R models
 
@@ -244,8 +262,26 @@ echo "✓ Permissions set"
 
 ### Step 5: Launch Services
 
+Before pulling, fail fast if the NGC key authenticated in Step 1 but cannot actually access a release image — otherwise `docker compose up` aborts partway with a 401/403 after some work is already done.
+
 ```bash
 cd $REPO_ROOT/compose
+
+# Fail-fast image-access check: confirm the NGC key can reach every release
+# image BEFORE pulling. `docker manifest inspect` checks registry access without
+# downloading layers, and the image list is read from the resolved compose so it
+# tracks the release tag automatically.
+IMAGES=$(docker compose config --images | sort -u)
+[ -z "$IMAGES" ] && { echo "ERROR: no images resolved from compose — check compose/.env and the chosen profile." >&2; exit 1; }
+for img in $IMAGES; do
+  echo "Checking access: $img"
+  if ! docker manifest inspect "$img" >/dev/null 2>&1; then
+    echo "NGC login succeeded, but this key cannot access the required image:" >&2
+    echo "  $img" >&2
+    echo "Provide an NGC key with access to this image's namespace, then re-run Step 1 (login) and retry." >&2
+    exit 1
+  fi
+done
 
 # Start all services (images pulled automatically on first run)
 docker compose up -d
@@ -269,10 +305,7 @@ MS_PORT=$(grep AUTO_MAGIC_CALIB_MS_PORT $REPO_ROOT/compose/.env | cut -d= -f2)
 UI_PORT=$(grep AUTO_MAGIC_CALIB_UI_PORT $REPO_ROOT/compose/.env | cut -d= -f2)
 HOST_IP=$(grep HOST_IP $REPO_ROOT/compose/.env | cut -d= -f2)
 
-# Check containers are running (from any directory)
-docker compose -f $REPO_ROOT/compose/compose.yml ps
-
-# Check microservice health
+# Check microservice health (containers were already verified in Step 5)
 curl -s http://localhost:${MS_PORT}/v1/ready
 # Expected: {"code":0,"message":"VSS Auto Calibration Microservice is ready"}
 
@@ -286,12 +319,7 @@ echo "Web UI:       http://${HOST_IP}:${UI_PORT}"
 
 ## Success Criteria
 
-**Both containers running**:
-```bash
-docker compose -f $REPO_ROOT/compose/compose.yml ps
-# Both services should show "Up" status
-# Microservice should show "(healthy)" in STATUS column
-```
+**Both containers running** — see `docker compose ps` output from Step 5. Both services should show "Up" status; microservice should show "(healthy)" in the STATUS column.
 
 **Microservice healthy**:
 ```bash
@@ -329,7 +357,8 @@ curl http://localhost:${MS_PORT}/v1/ready
 | `huggingface-cli` not found | `huggingface-cli: command not found` | The binary is named `hf` in the venv. Find it with: `find venv ~/venv/amc -name hf -type f 2>/dev/null \| head -1` |
 | `python3 -m venv` fails | "ensurepip not available" | Run `sudo apt install -y python3.12-venv` first |
 | Docker permission denied | "permission denied while trying to connect to docker socket" | User not in docker group — ask user to run: `sudo usermod -aG docker $USER && newgrp docker`. See: https://docs.docker.com/engine/install/linux-postinstall/ |
-| NGC pull fails | "401 Unauthorized" on pull | Re-run NGC login: `echo "$NGC_API_KEY" \| docker login nvcr.io --username '$oauthtoken' --password-stdin` |
+| `docker login` itself rejected | Step 1 login returns an authentication error | The key is invalid or expired. Ask the user for a current NGC key and log in again before continuing. |
+| Key logs in but can't access an image | The Step 5 access check stops with "cannot access the required image" / a 401/403 on `docker manifest inspect`, before any pull | The key authenticates but lacks access to that image's namespace. Re-running login with the same key won't help — ask the user for an NGC key with access to the required namespace, re-run Step 1, then retry Step 5. |
 | VGGT download permission error | "PermissionError: [Errno 13] Permission denied: 'models/vggt/.cache'" | Download VGGT BEFORE setting `chown 1000:1000` on models. Fix: `sudo chown -R $(id -u):$(id -g) models` then re-download |
 | Port already in use | "address already in use" | Find available port in 8000-8009 (MS) or 5000-5009 (UI); update `.env` |
 | Permission denied (projects) | "Permission denied: 'projects/...'" in MS logs | Run: `sudo chown 1000:1000 -R projects` |
@@ -358,9 +387,6 @@ docker compose down
 
 # Update .env and relaunch
 docker compose up -d
-
-# Check container status from any directory
-docker compose -f $REPO_ROOT/compose/compose.yml ps
 ```
 
 ## Stopping the Services
@@ -375,11 +401,6 @@ docker compose down
 docker compose down -v
 ```
 
-## Reference
-
-- [`references/quick-reference.md`](references/quick-reference.md) — condensed runbook for agents: 12-step summary of the workflow above, a full example autonomous-execution shell block, and AskUserQuestion templates for NGC login and VGGT download.
-
 ## Related Skills
 - `skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
 - `skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
-- `skills/amc-run-rtsp-calibration/SKILL.md` - Calibrate from live RTSP streams via VIOS

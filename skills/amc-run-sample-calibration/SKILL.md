@@ -5,9 +5,9 @@ owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
-data_classification: public
+license: "Apache-2.0"
 metadata:
-  author: "NVIDIA Corporation"
+  author: "NVIDIA CORPORATION"
   license: "Apache-2.0"
   tags: [amc, calibration, sample, rest-api, validation, python]
 ---
@@ -22,7 +22,13 @@ Activate this skill when the user wants to sanity-check a running AMC stack with
 - "verify AMC install"
 - "launch and test" (chain with `amc-setup-calibration-stack` if the MS isn't already running)
 
+**Do NOT use this skill when:**
+
+- The user references their own video paths (e.g. `/data/videos/`, `cam_*.mp4` not from the bundled zip) — route to `amc-run-video-calibration`. This skill is exclusively for `assets/sdg_08_2_sample_data_010926.zip`.
+
 Prerequisite: AMC microservice running on a port in 8000-8009. If no backend is detected, delegate to `amc-setup-calibration-stack` first.
+
+If execution cannot proceed in the current environment (no backend, missing sample data, etc.), surface the blocker AND describe the expected workflow + API sequence concisely so the user understands what will run once prerequisites are met. Do not fabricate calibration outputs, evaluation metrics, or trajectories.
 
 ## Overview
 
@@ -96,7 +102,7 @@ Run the test on the fly — pipe Python into `python3` via heredoc so nothing is
 # Resolve env
 export REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 COMPOSE_DIR="$REPO_ROOT/compose"
-export MS_PORT="$(grep AUTO_MAGIC_CALIB_MS_PORT "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2)"
+export MS_PORT="${MS_PORT:-$(grep AUTO_MAGIC_CALIB_MS_PORT "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2)}"
 export MS_PORT="${MS_PORT:-8000}"
 export BASE_URL="http://localhost:${MS_PORT}/v1"
 # Optional: export SAMPLE_DIR=/abs/path/to/extracted/sample to override autodetection
@@ -105,8 +111,10 @@ export BASE_URL="http://localhost:${MS_PORT}/v1"
 PY=python3
 "$PY" -c 'import requests' 2>/dev/null || {
   VENV="${TMPDIR:-/tmp}/amc-sample-test-venv"
-  python3 -m venv "$VENV" 2>/dev/null \
-    || { sudo apt install -y python3-venv python3-pip && python3 -m venv "$VENV"; }
+  python3 -m venv "$VENV" 2>/dev/null || {
+    echo "ERROR: python3-venv not available. Run: sudo apt install -y python3-venv python3-pip" >&2
+    exit 1
+  }
   "$VENV/bin/pip" install --quiet requests
   PY="$VENV/bin/python3"
 }
@@ -232,23 +240,32 @@ r = s.post(f"{BASE_URL}/calibrate/{project_id}", json={"detector_type": "resnet"
 r.raise_for_status()
 print(f"[7] Calibration started (detector=resnet)")
 
-# Step 8 — Poll for completion (~10–30 min for sample)
+# Step 8 — Poll for completion (~10–30 min for sample). Print on every state
+# change, plus a heartbeat at least once a minute so a long RUNNING state still
+# shows progress.
 print(f"[8] Polling (expect 10–30 min)...")
-start = time.time()
-last_state = ""
+start, last_state, last_beat = time.time(), "", 0.0
 while time.time() - start < 3600:
     r = s.get(f"{BASE_URL}/get_project_info/{project_id}", timeout=DEFAULT_TIMEOUT)
     r.raise_for_status()
     st = r.json()["project_info"]["project_state"]
-    elapsed = int(time.time() - start)
-    if st != last_state:
-        print(f"    [{elapsed:>4}s] {st}", flush=True)
-        last_state = st
+    mins, secs = divmod(int(time.time() - start), 60)
+    if st != last_state or time.time() - last_beat >= 60:
+        print(f"    [{mins:>3}m {secs:02d}s] {st}", flush=True)
+        last_state, last_beat = st, time.time()
     if st == "COMPLETED":
-        print(f"[8] Completed in {elapsed}s")
+        print(f"[8] Completed in {mins}m {secs:02d}s")
         break
     if st == "ERROR":
-        sys.exit(f"Calibration failed. Pull log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
+        # Surface the tail of the calibration log so the failure is actionable.
+        try:
+            log_lines = s.get(f"{BASE_URL}/amc/calibrate/{project_id}/log", timeout=DEFAULT_TIMEOUT).text.splitlines()
+            print("    --- last calibration log lines ---")
+            for line in log_lines[-20:]:
+                print(f"    {line}")
+        except Exception:
+            pass
+        sys.exit(f"Calibration failed. Full log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
     time.sleep(10)
 else:
     sys.exit("Timed out after 60 min")
@@ -271,6 +288,8 @@ PY
 > **Why heredoc, not a `.py` file?** The skill is meant to run on demand against any user's checkout — writing `run_sample_test.py` into the repo would dirty their working tree. The `<<'PY'` quoting prevents shell expansion inside the script. Re-run the same block any time; each run creates a fresh project.
 
 ## Alternative: Swagger UI Walkthrough
+
+> **Agent shortcut**: if the user explicitly requested a Swagger UI walkthrough (or said "no Python"), emit the table below and stop — do not invoke shell tooling, read other sections, or run the inline Python block.
 
 The microservice exposes an interactive OpenAPI UI at **`http://<HOST_IP>:<MS_PORT>/docs`**. If you prefer clicking through the API by hand:
 
@@ -352,6 +371,5 @@ docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 
 - `skills/amc-setup-calibration-stack/SKILL.md` — launch MS + UI (prerequisite).
 - `skills/amc-run-video-calibration/SKILL.md` — run calibration on your own pre-recorded MP4s.
-- `skills/amc-run-rtsp-calibration/SKILL.md` — run calibration on live RTSP streams via VIOS.
 
 Root `README.md` "Sample Data Setup" and "Calibration Workflow (UI)" sections cover the human-oriented path through the same sample.
