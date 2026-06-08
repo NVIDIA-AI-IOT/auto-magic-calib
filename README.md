@@ -284,7 +284,7 @@ Provide camera inputs using **either** file upload **or** RTSP URLs (one camera 
 - **Delete Video**: Click the trash icon (🗑️) next to a video to remove it
 - **Re-upload**: Delete and upload again if needed
 
-**Option B: RTSP YRLs as Input (VIOS)**
+**Option B: RTSP URLs as Input (VIOS)**
 
 *(Shown only when VIOS is configured on the server side.)*
 
