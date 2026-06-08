@@ -1,6 +1,6 @@
 services:
   auto-magic-calib-ms:
-    image: nvcr.io/nvidia/auto-magic-calib:2.0.0
+    image: nvcr.io/nvidia/vss-core/vss-auto-calibration:3.2.0
     container_name: auto-magic-calib-ms-1
     
     # GPU support
@@ -20,6 +20,9 @@ services:
    
     environment:
       - VGGT_MODEL_PATH=${VGGT_MODEL_PATH:-/tmp/vggt_model/vggt_1B_commercial.pt}
+      - VIOS_BASE_URL=${VIOS_BASE_URL:-}
+      - HOST_IP=${HOST_IP:-localhost}
+      - AUTO_MAGIC_CALIB_MS_PORT=${AUTO_MAGIC_CALIB_MS_PORT:-8000}
     
     # Volume mounts
     volumes:
@@ -45,6 +48,5 @@ services:
       timeout: 10s
       retries: 3
       start_period: 1000s
-
 
 

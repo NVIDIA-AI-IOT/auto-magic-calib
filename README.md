@@ -92,14 +92,48 @@ Edit the `compose/.env` file to set the required environment variables.
 | `HOST_IP` | **Yes** | — | IP address of the host machine |
 | `AUTO_MAGIC_CALIB_MS_PORT` | No | `8000` | Port for the microservice API |
 | `AUTO_MAGIC_CALIB_UI_PORT` | No | `5000` | Port for the web UI |
-| `PROJECT_DIR` | No | `../../projects` | Path to the projects directory |
-| `MODEL_DIR` | No | `../../models` | Path to the models directory |
+| `PROJECT_DIR` | No | `../../projects` | Path to the repo-root projects directory |
+| `MODEL_DIR` | No | `../../models` | Path to the repo-root models directory |
+| `VIOS_BASE_URL` | No | — | VIOS server URL for RTSP capture APIs |
 
-If you want to enable VGGT, VGGT model should be copied inside $MODEL_DIR/vggt/
+If you want to enable VGGT, VGGT model should be copied inside `$MODEL_DIR/vggt/`.
+
+```dotenv
+AUTO_MAGIC_CALIB_MS_PORT=8000
+AUTO_MAGIC_CALIB_UI_PORT=5000
+PROJECT_DIR=../../projects
+MODEL_DIR=../../models
+HOST_IP=<your_host_ip>
+# VIOS_BASE_URL=http://<VIOS_HOST_IP>:30888  # Uncomment and update this to support RTSP Stream
+```
+
+`HOST_IP` must not be empty. If it is empty, the UI API URL renders as `http://:<port>/v1`. To bypass the generated URL completely, set `AUTO_MAGIC_CALIB_MS_API_URL` in `.env`, for example:
+
+```dotenv
+AUTO_MAGIC_CALIB_MS_API_URL=http://<host-or-dns>:8000/v1
+```
+
+Leave `VIOS_BASE_URL` unset to keep RTSP capture disabled.
+
+#### Optional VIOS Setup for RTSP Capture
+RTSP capture endpoints require `VIOS_BASE_URL`. If a VIOS server is already reachable from the AMC host, verify it before setting `VIOS_BASE_URL` in `compose/.env`. Without VIOS, the rest of the calibration workflow can run, but `/rtsp/*` capture endpoints remain disabled.
+
+If VIOS is not deployed yet, use the VIOS deployment assets from the VSS repository:
+
+```text
+https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization/tree/develop/services/vios/deployment
+```
+
+Follow `1click_README.md` in that directory. A typical development deployment command is:
 
 ```bash
-# At minimum, set HOST_IP in compose/.env
-HOST_IP=<your_host_ip>
+sudo python3 oneclick_dc_deployment_for_dev.py --auto
+```
+
+Verify VIOS before enabling it:
+
+```bash
+curl http://<vios-host>:30888/vst/api/v1/sensor/list
 ```
 
 #### Set Directory Permissions
