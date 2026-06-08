@@ -1,6 +1,6 @@
 # AutoMagicCalib
 
-AutoMagicCalib (AMC) is an automated calibration tool that estimates both intrinsic and extrinsic camera parameters for multi-camera systems. It provides camera projection matrices and lens distortion coefficients essential for accurate 3D reconstruction and multi-view applications.
+AutoMagicCalib (AMC) is an automated calibration tool that estimates both intrinsic and extrinsic camera parameters for multi-camera and single-camera systems. It provides camera projection matrices and lens distortion coefficients essential for accurate 3D reconstruction and multi-view applications.
 
 AMC eliminates the need for traditional calibration patterns (like checkerboards) by using tracked moving objects in the scene as natural features for calibration. It leverages DeepStream's object detection and tracking capabilities to identify and follow objects (particularly people) across frames, then analyzes these trajectories across camera views to automatically derive camera parameters from regular operational footage. This approach enables calibration without interrupting normal operations, allows retroactive calibration using archived footage, and performs calibration in the actual deployment environment.
 
@@ -15,9 +15,10 @@ The service supports both a geometry-based approach (AMC) using object trajector
   - Score metrics graphs of parameter estimation
   - Rectified video generation with estimated lens parameters
   - Visual overlay video generation (SV3DT) with estimated camera projection matrix
-- Complete end-to-end pipeline for multi-camera calibration
+- Complete end-to-end pipeline for single-camera and multi-camera calibration
 - Bundle adjustment for improved accuracy
 - Evaluation against ground truth data
+- **Web UI workflow**: 6-step guided calibration with project management, RTSP capture (VIOS), per-camera and global (layout-map) ROI/tripwire drawing, manual alignment, AMC and optional VGGT calibration, and export/verification tools
 
 ## Table of Contents
 - [Features](#features)
@@ -38,10 +39,13 @@ The service supports both a geometry-based approach (AMC) using object trajector
   - [Input Video Resolution](#input-video-resolution)
   - [Time-synced Input Videos](#time-synced-input-videos)
 - [Custom Dataset](#custom-dataset)
+  - [Input Requirements](#input-requirements)
+  - [Alignment Data (alignment_data.json)](#alignment-data-alignment_datajson)
   - [Guidelines for Input Videos](#guidelines-for-input-videos-to-achieve-optimal-calibration-results)
   - [Ground Truth Data Format](#ground-truth-data-format)
     - [calibration.json](#calibrationjson)
     - [ground\_truth.json](#ground_truthjson)
+- [Troubleshooting](#troubleshooting)
 - [License](#license)
   - [Repository Licenses](#repository-licenses)
   - [Proprietary Container Notices](#proprietary-container-notices-automagiccalib-and-automagiccalibui)
@@ -70,12 +74,17 @@ Password: "YOUR_NGC_API_KEY"
 ```
 
 ### Project Setup
-Clone the repo to your local directory.
-```bash
-# clone the repo
-git clone https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git
-cd auto-magic-calib
-```
+Clone the repository or initialize it as a submodule, then run the commands below
+from the AutoMagicCalib root directory. This is the directory that contains this
+README along with `compose/`, `assets/`, `models/`, and `projects/`.
+
+If you cloned AutoMagicCalib directly, the AutoMagicCalib root is the clone
+directory. If you are using it from the DeepStream repository, the AutoMagicCalib
+root is the `tools/auto-magic-calib` submodule directory.
+All paths in the rest of this guide are relative to the AutoMagicCalib root,
+except for `PROJECT_DIR` and `MODEL_DIR` in `compose/.env`, which Docker Compose
+resolves relative to the `compose/ms/` directory (hence the `../../` prefix in
+their defaults).
 
 #### Download and set up VGGT model
 Optionally you can download VGGT model for model based calibration
@@ -123,14 +132,14 @@ docker compose down
 ```
 
 ### Sample Data Setup
-Unzip the compressed sample data file `auto-magic-calib/assets/sdg_08_2_sample_data_010926.zip`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
+From the AutoMagicCalib directory, unzip the compressed sample data file `assets/sdg_08_2_sample_data_010926.zip`. The sample folder includes 4 different types of data to help you run end-to-end calibration and evaluation.
 1. Input video files
 2. Ground truth data
 3. BirdEyeView map image
 4. Pre-calibrated transform for BirdEyeView map
 
 ```
-~/auto-magic-calib/assets/sdg_08_2_sample_data_010926.zip
+assets/sdg_08_2_sample_data_010926.zip
 ├── alignment_data
 │   ├── alignment_data.json     # Pre-calibrated transform from `cam_00` reference frame to BirdEyeView map image 
 │   └── layout.png              # BirdEyeView map image required for visualization
@@ -222,7 +231,15 @@ Click the **Refresh** button in the top-right corner to reload the project list 
 2. Confirm deletion in the dialog that appears
 3. The project and all associated data are permanently deleted
 
-> **Warning:** Deleting a project cannot be undone. Export any important calibration results before deletion.
+**Deleting All Projects**
+
+1. In the Project Setup header (next to **Refresh**), click **Delete all**
+2. Confirm in the **Delete all projects?** dialog
+3. Every removable project is permanently deleted; the project list reloads afterward
+
+The button is disabled when there are no projects. Projects with calibration **running** or **RTSP capture in progress** are skipped and not removed.
+
+> **Warning:** Deleting a project (or using **Delete all**) cannot be undone. Export any important calibration results before deletion.
 
 ---
 
@@ -235,7 +252,7 @@ Upload camera videos, layout image, ground truth data, and optional alignment fi
 ### Upload Status Overview
 
 At the top of the page, you'll see a status summary showing:
-- **Videos**: Count of uploaded videos (minimum 2 required)
+- **Videos**: Count of uploaded videos (minimum 1 required)
 - **Ground Truth (Optional)**: Upload status
 - **Layout**: Upload status (required)
 - **Alignment (Optional)**: Upload status
@@ -245,25 +262,47 @@ At the top of the page, you'll see a status summary showing:
 ### Uploading Video Files
 
 **Requirements**
-- **Minimum**: 2 video files
+- **Minimum**: 1 video file (2 or more for multi-camera calibration)
 - **Formats**: MP4
 - **Required Video Resolution**: 1920×1080
 
-**Upload Process**
+Provide camera inputs using **either** file upload **or** RTSP capture (one camera for single-camera calibration, two or more for multi-camera). **RTSP capture is available only when VIOS is configured on the Auto Calibration server**; otherwise use file upload. The UI does not allow an active file-upload queue and RTSP capture at the same time; remove file-uploaded clips before switching to RTSP, and vice versa.
 
-1. Click the **Select Videos** button to choose video files from your computer
+**Option A: Upload video files**
+
+1. Click the **Select Videos** button to choose video files from your computer (MP4)
 2. Selected videos appear in a list where you can reorder them by dragging
-3. Reorder the videos to match your desired camera order (`cam_00`, `cam_01`, etc.)
-4. Click the **Upload** button to upload all selected videos
+3. Reorder videos to match your desired camera order (`cam_00`, `cam_01`, etc.)—maintain **order of overlapping field of view (FOV)**
+4. Click **Upload N File(s)** to upload all selected videos
 5. Wait for the upload progress bar to complete
 
 ![Video Upload](resources/images/vss-autocalib-ui/video_upload.jpg)
 
 **Managing Video Files**
-- **View List**: All selected videos are listed with their filenames
+- **View List**: All selected or uploaded videos are listed with their filenames
 - **Reorder**: Drag and drop videos to change their order before uploading
 - **Delete Video**: Click the trash icon (🗑️) next to a video to remove it
 - **Re-upload**: Delete and upload again if needed
+
+**Option B: RTSP capture (VIOS)**
+
+*(Shown only when the Auto Calibration service exposes RTSP capture; VIOS is configured on the server side.)*
+
+1. Finish or clear any pending **Video Files** selection or upload before starting RTSP; if the project already has clips from file upload, remove them under **Video Files** first
+2. In the **RTSP capture (VIOS)** card, set **Duration (seconds)** (minimum **60** seconds, per server requirement)
+3. Under **Streams**, enter **all** **RTSP URLs** for the project before capturing. Use **Add stream** for additional cameras. Optionally set **Camera name**
+4. Click **Start capture** **once** for the full stream list (all cameras record together). Do not add streams later or run separate captures at different times—that breaks time synchronization
+5. Wait for the status chip and progress bar (**STARTING** → **RECORDING** → **STOPPING** / **INGESTING** as applicable)
+6. Optionally click **Stop early** after at least **60** seconds of active recording
+7. When the session reaches **COMPLETED** or **CANCELLED**, click **Ingest to project** to add captured clips to the project's video list
+
+While RTSP capture or ingest is running, **Video Files** upload is disabled until the pipeline completes.
+
+![RTSP Input](resources/images/vss-autocalib-ui/rtsp_input.jpg)
+
+> RTSP streams must be **time-synchronized**: one **Start capture** with every stream configured together—no staggered captures or later ingest of additional streams. List each **RTSP URL** under **Streams** in **order of overlapping FOV** (first stream = first camera in the overlap chain).
+
+> For **VIOS pre-registered RTSP streams**, use the **source URL** (for example, the **NVStreamer** URL if the stream originates from NVStreamer) rather than the VIOS-proxied URL.
 
 ### Uploading Ground Truth Data
 
@@ -332,7 +371,7 @@ If alignment is already uploaded, the button changes to **Delete Alignment**. Cl
 ### Requirements Note
 
 **Required for Calibration:**
-- At least 2 video files
+- At least 1 video file (2 or more for multi-camera calibration)
 - Layout image (PNG)
 - Alignment data (can be created in Manual Alignment step)
 
@@ -345,7 +384,7 @@ If alignment is already uploaded, the button changes to **Delete Alignment**. Cl
 
 ## Step 3: Parameters
 
-Configure camera parameters, draw ROIs (Regions of Interest), and define tripwires.
+Configure camera parameters, draw per-camera or global ROIs (Regions of Interest) and tripwires, optionally export image-mode JSON, and set focal lengths.
 
 ![Parameters Step](resources/images/vss-autocalib-ui/parameters_step.jpg)
 
@@ -354,25 +393,41 @@ Configure camera parameters, draw ROIs (Regions of Interest), and define tripwir
 The Parameters step is divided into two main sections:
 
 **Left Panel (Main Canvas)**
-- Camera selection dropdown
+- **Annotation target** toggle: **Camera** or **Global ROIs / tripwires**
+- Camera selection dropdown (when **Camera** is selected)
 - Drawing tools toolbar
-- Video frame canvas with annotations
+- Canvas: video frame (per-camera) or layout map (global)
 - Instructions and controls
 
 **Right Panel (Sidebar)**
-- Current annotations list
-- ROI count and details
-- Tripwire lines count
-- Tripwire directions count
-- Focal length configuration
+- Current annotations list (per-camera or **Global (layout map)**)
+- ROI, tripwire line, and tripwire direction counts
+- **Export image-mode JSON** — download ROIs and tripwires in pixel coordinates
+- Focal length configuration (optional)
 
-### Camera Selection
+### Annotation Target
 
-1. Select a camera from the dropdown menu at the top
-2. The first frame of the selected video loads on the canvas
-3. Switch between cameras to annotate each one
+Choose **Camera** or **Global ROIs / tripwires** at the top of the left panel before drawing.
+
+![Annotation Target](resources/images/vss-autocalib-ui/annotation_target.jpg)
+
+**Camera (per-stream annotations)**
+
+1. Select **Camera** in the annotation target toggle
+2. Choose a stream from the **Select Camera** dropdown
+3. The first frame of the selected video loads on the canvas
+4. Switch between cameras to draw ROIs, tripwire lines, and tripwire directions on each one
 
 ![Camera Selection](resources/images/vss-autocalib-ui/cam_selection.jpg)
+
+**Global ROIs / tripwires (layout-map annotations)**
+
+1. Upload a layout image in Step 2 (required for this mode)
+2. Select **Global ROIs / tripwires** in the annotation target toggle (disabled until a layout is uploaded)
+3. The layout map loads on the canvas instead of a video frame
+4. Use the same drawing tools as for camera mode; global shapes are stored separately and listed as **Global (layout map)** in the right panel
+
+> Global and per-camera annotations use the same tools and auto-save behavior.
 
 ### Drawing Tools
 
@@ -381,7 +436,7 @@ The Parameters step is divided into two main sections:
 - **Draw Tripwire**: Create tripwire lines for counting
 - **Tripwire Direction**: Create directional tripwires with arrows
 - **Show/Hide**: Toggle visibility of annotations
-- **Reset**: Clear all annotations for current camera
+- **Reset**: Clear all annotations for the active target (current camera or global layout map)
 
 ![Drawing Tools](resources/images/vss-autocalib-ui/drawing_tools.jpg)
 
@@ -394,7 +449,7 @@ ROIs define areas of interest for detection and tracking.
 1. Click the **Draw ROI** button (it becomes highlighted)
 2. Click on the video frame to add points
 3. Add at least 3 points to form a polygon
-4. Finish the ROI by pressing the `F` key
+4. Finish the ROI by pressing the `F` key or right-clicking on the canvas
 5. The ROI is automatically saved with a green color
 
 **ROI Features**
@@ -454,7 +509,7 @@ Tripwire directions are used for unidirectional counting with an arrow indicator
 - **Scroll Wheel**: Zoom in/out on the canvas
 - **Click + Drag**: Pan around when zoomed in
 - **Show/Hide Button**: Toggle visibility of all annotations
-- **Reset Button**: Clear all annotations for the current camera
+- **Reset Button**: Clear all annotations for the active annotation target
 
 **Visual Feedback**
 - **Drawing Mode**: Active tool is highlighted in the toolbar
@@ -464,13 +519,31 @@ Tripwire directions are used for unidirectional counting with an arrow indicator
 
 ### Annotation List (Right Panel)
 
-The right panel shows all annotations for the currently selected camera.
+The right panel shows all annotations for the active target—the selected **Camera** or **Global (layout map)**.
 
 - **ROIs Section**: Count of completed ROIs; each ROI shown as a green chip with point count; delete button for each
 - **Tripwire Lines Section**: Count of completed tripwire lines; each line shown as a red chip; delete button for each
 - **Tripwire Directions Section**: Count of completed tripwire directions; each direction shown as a yellow chip with arrow; delete button for each
 
 ![Annotation List](resources/images/vss-autocalib-ui/annotation_list.jpg)
+
+### Export Image-Mode JSON
+
+Use this when you need ROIs and tripwires in **pixel coordinates** without running bundle adjustment.
+
+**How to Export**
+
+1. In the right panel, open the **Export image-mode JSON** card
+2. Click **Export image-mode JSON**
+3. The browser downloads `<project_name>_image_mode_exported.json`
+
+![Export Image-Mode JSON](resources/images/vss-autocalib-ui/export_image_mode.jpg)
+
+**What Is Exported**
+
+- ROIs and tripwires from all cameras plus any **global** layout annotations, in **pixel space**
+- `calibrationType` is **image** (same JSON shape as cartesian export)
+- Does not require AMC calibration to have completed
 
 ### Focal Length Configuration
 
@@ -502,7 +575,7 @@ Focal lengths are optional but can improve calibration accuracy.
 All annotations (ROIs, tripwires, tripwire directions) are automatically saved to the server as you draw them.
 - No manual save required
 - Instant persistence
-- Per-camera storage
+- Per-camera and global storage
 - Survives page refresh
 
 > The green success message "Note: Annotations are saved automatically as you draw. Proceed to the next step when ready." confirms auto-save is active.
@@ -570,7 +643,7 @@ At the top of the page, you'll see the current alignment status:
 ### Prerequisites Check
 
 Before creating alignment interactively, the system checks:
-- ✓ At least 2 videos uploaded
+- ✓ At least 1 video uploaded
 - ✓ Layout image uploaded
 
 If prerequisites are not met, you'll see a warning message directing you to Step 2.
@@ -579,10 +652,16 @@ If prerequisites are not met, you'll see a warning message directing you to Step
 
 **Interface Overview**
 
-The alignment tool displays three images side-by-side in a single concatenated canvas:
+The alignment tool shows one concatenated canvas. The layout depends on how many videos are in the project:
+
+**Multi-camera (2 or more videos)**
 - **Left**: Camera 0 (cam_00.mp4)
 - **Center**: Camera 1 (cam_01.mp4)
-- **Right**: Layout Map (BEV — Bird's Eye View)
+- **Right**: Layout map (BEV — bird's eye view)
+
+**Single-camera (1 video)**
+- **Left**: Camera (cam_00.mp4)
+- **Right**: Layout map (BEV)
 
 ![Alignment Canvas](resources/images/vss-autocalib-ui/alignment_canvas.jpg)
 
@@ -591,21 +670,29 @@ The alignment tool displays three images side-by-side in a single concatenated c
 At the top, you'll see:
 - **Progress Bar**: Visual progress (0–100%)
 - **Completion Status**: "X / Y sets (Min 4 required)" or "(Ready to save)"
-- **Current Action**: "Click on: Camera 0 / Camera 1 / Layout Map (Point set N)"
+- **Current Action**: Prompt shows the next panel to click—for example **Camera 0**, **Camera 1**, **Layout Map**, or **Camera** (single-camera)
 
 ### Point Selection Process
 
-1. **Select Point on Camera 0** — click on a distinct feature visible in Camera 0 (left section); a colored circle appears; system prompts "Click on: Camera 1"
+**Multi-camera (3 clicks per point set)**
+
+1. **Select Point on Camera 0** — click on a distinct feature in Camera 0 (left section); a colored circle with number "1" appears; system prompts "Click on: Camera 1"
 2. **Select Corresponding Point on Camera 1** — click on the same physical location in Camera 1 (center section); system prompts "Click on: Layout Map"
-3. **Select Corresponding Point on Layout** — click on the same physical location on the Layout Map (right section); **Point Set 1 Complete!**
-4. **Repeat for Additional Points** — system automatically moves to Point Set 2; each set uses a different color (Green, Blue, Red, Yellow); repeat for at least 4 total point sets
+3. **Select Corresponding Point on Layout** — click on the same physical location on the layout map (right section); **Point Set 1 complete**
+4. **Repeat for Additional Points** — repeat for at least **4** total point sets; each set uses a different color (green, blue, red, yellow)
+
+**Single-camera (2 clicks per point set)**
+
+1. **Select Point on Camera** — click on a distinct feature in the camera view (left section); system prompts "Click on: Layout Map"
+2. **Select Corresponding Point on Layout** — click on the same physical location on the layout map (right section); **Point Set 1 complete**
+3. **Repeat for Additional Points** — repeat for at least **4** total point sets (same minimum as multi-camera)
 
 ![Point Selection Process](resources/images/vss-autocalib-ui/point_selection_process.jpg)
 
 **Point Selection Tips**
 - Choose points on the **ground plane**
 - Select **distinct features** (corners, markings, poles)
-- Ensure points are **visible in all three images**
+- Ensure each point is **visible in every panel** for that project (all cameras and the layout map, or camera + layout for single-camera)
 - Distribute points across **different depths and locations**
 - Avoid points on **moving objects**
 - Use **zoom controls** for precision
@@ -636,8 +723,9 @@ At the top, you'll see:
 ### Saving Alignment Data
 
 **Requirements**
-- Minimum 4 complete point sets
-- Each set must have all 3 points (Camera 0, Camera 1, Layout)
+- Minimum **4** complete point sets
+- **Multi-camera**: each set must include Camera 0, Camera 1, and layout map points
+- **Single-camera**: each set must include camera and layout map points (2 points per set)
 
 **Save Process**
 
@@ -655,20 +743,27 @@ Click the **Cancel** button to exit the alignment tool without saving.
 
 ### Alignment Data Format
 
-The generated alignment data is a JSON array with the following structure:
+The generated alignment data is a JSON array. Each outer element is one point set; coordinates are in pixel space of the original images.
+
+**Multi-camera** — three `[x, y]` pairs per set (camera 0, camera 1, layout):
 
 ```json
 [
-  [
-    [x0_cam0, y0_cam0],
-    [x0_cam1, y0_cam1],
-    [x0_layout, y0_layout]
-  ],
+  [[x0_cam0, y0_cam0], [x0_cam1, y0_cam1], [x0_layout, y0_layout]],
+  [[x1_cam0, y1_cam0], [x1_cam1, y1_cam1], [x1_layout, y1_layout]],
   ...
 ]
 ```
 
-Each outer array element represents one point set with 3 coordinate pairs `[x, y]` in pixel space.
+**Single-camera** — two `[x, y]` pairs per set (camera, layout):
+
+```json
+[
+  [[x0_cam, y0_cam], [x0_layout, y0_layout]],
+  [[x1_cam, y1_cam], [x1_layout, y1_layout]],
+  ...
+]
+```
 
 ### Deleting Alignment Data
 
@@ -731,7 +826,7 @@ When RUNNING, an elapsed time counter and progress bar are displayed.
 
 The system validates all required files before allowing calibration:
 
-- ✓ **Videos (minimum 2)**: Shows count of uploaded videos
+- ✓ **Videos (minimum 1)**: Shows count of uploaded videos
 - ✓ **Layout Image**: Confirms layout is uploaded
 - ✓ **Alignment Data**: Confirms alignment is uploaded or created
 
@@ -808,11 +903,13 @@ When AMC calibration finishes successfully:
 
 ### Calibration Failure
 
-If calibration fails:
+If AMC calibration fails (for example during multi-view **tracklet matching**):
 - **Error Alert**: "❌ Calibration failed!"
 - **Message**: "Please check your input files and try again."
-- **Project State**: Changes to "ERROR"
+- **Project State**: May show **ERROR** while **AMC State** is **ERROR**
 - **Reset Option**: "Reset Project" button appears
+
+If **VGGT** is installed and the required AMC output folders are already on disk (typically after single-view work including **rectification**), the **Run VGGT Calibration** control may still appear with **VGGT** state **READY**. A successful VGGT run sets the overall project to **COMPLETED** even when AMC did not finish—use **Results** to view VGGT calibration output.
 
 **How to Recover**
 
@@ -835,43 +932,48 @@ If calibration fails:
 
 ### VGGT Calibration (Optional)
 
-VGGT (Vision-Geometry Graph Transformer) is an optional refinement method available after AMC completes.
+VGGT (Vision-Geometry Graph Transformer) is an optional **multi-camera** calibration method. It is **not tied to AMC reporting success**: you can run VGGT after AMC has produced the needed on-disk outputs (in practice, once **rectification** is finished for your cameras), even if AMC later fails—for example at multi-view **tracklet matching**.
 
-> VGGT is only available if the backend server has VGGT support installed.
+> VGGT requires **VGGT support on the backend** (model and dependencies installed). It is **not offered for single-camera** projects.
 
 **When Available**
-- AMC calibration must be completed first
-- VGGT section appears below AMC section
-- VGGT state shows "READY"
+- **Multi-camera only** (two or more videos)
+- Backend has VGGT installed and the UI shows the **Calibration Control (VGGT)** section
+- AMC does **not** need state **COMPLETED**; **VGGT** state **READY** is enough (the server enables this when required AMC output directories exist, including rectified single-view results)
+- AMC may still show **ERROR** if the classical pipeline failed after rectification—VGGT can remain runnable in that case
 
 **How to Run VGGT**
 
-1. After AMC completes, scroll to **Calibration Control (VGGT)** section
-2. Click **Run VGGT Calibration** button
-3. VGGT pipeline begins; progress indicators appear (similar to AMC)
+1. After AMC has run far enough to create outputs (or after a failed AMC run that left outputs on disk), scroll to **Calibration Control (VGGT)**
+2. Confirm **VGGT** state is **READY**
+3. Click **Run VGGT Calibration**
+4. Progress indicators and live logs appear (similar to AMC)
 
 **VGGT Features**
-- **Refinement**: Improves AMC results using graph transformer
+- **Alternative Calibration Method**: Alternative calibration using a vision-geometry graph transformer on rectified inputs
 - **Duration**: Typically 2–3 minutes
-- **Independent**: Can be run multiple times
-- **Optional**: AMC results are valid without VGGT
+- **Independent of AMC success**: Separate from the AMC **Start Calibration** run; can be started multiple times
+- **Optional**: You can use AMC-only results when AMC completes successfully; VGGT is an additional path when configured
 
 ![VGGT Calibration](resources/images/vss-autocalib-ui/vggt_calib.jpg)
 
 **VGGT Completion**
 
-When VGGT finishes:
+When VGGT finishes successfully:
 - **Success Alert**: "✅ VGGT calibration completed successfully!"
 - **Message**: "Refined calibration results are available."
-- **VGGT State**: Shows "COMPLETED" badge
-- **Results**: Both AMC and VGGT results available in next step
+- **VGGT State**: **COMPLETED**
+- **Overall project state**: **COMPLETED** (even if AMC previously failed)
+- **Results**: Open the **Results** step and use the **VGGT** tab for VGGT calibration results
+
+> If AMC failed (for example during tracklet matching) but **VGGT** finishes successfully, treat the run as **calibration completed successfully** for the project: overall state is **COMPLETED** and you can proceed to **Results** using VGGT output.
 
 **VGGT Not Available**
 
 If VGGT is not installed on the backend:
 - **Info Alert**: "VGGT Calibration Not Available"
 - **Message**: "VGGT (Vision-Geometry Graph Transformer) is not installed on this system."
-- Proceed with AMC results only
+- **Action**: Rely on AMC results when AMC completes successfully, or fix AMC inputs and re-run AMC
 
 ### Calibration Information
 
@@ -906,7 +1008,7 @@ If you need to start over:
 
 **After Calibration**
 - Verify results in the Results step
-- Run VGGT if available for refinement
+- Run VGGT if available (multi-camera) when **VGGT** state is **READY**, including after AMC failure post-rectification
 - Export results before making changes
 - Keep a backup of exported data
 
@@ -940,11 +1042,16 @@ View calibration results, evaluate accuracy, and export calibration data.
 
 ### Results Availability
 
-The Results step is only accessible after calibration completes successfully.
+The **Results** step is available when at least one calibration path has completed successfully:
 
-**If Calibration Not Complete**
+- **AMC completed successfully**, or
+- **VGGT completed successfully** (even if AMC failed earlier—for example during multi-view tracklet matching)
+
+When VGGT alone succeeds, the overall project state is **COMPLETED** and you can open **Results** and use the **VGGT** tab for overlays, parameters, and exports. AMC tabs remain available only when AMC produced usable outputs.
+
+**If No Results Are Available Yet**
 - **Running**: "Calibration is still running — Please wait for calibration to complete."
-- **Error**: "Calibration failed — Please check your input files and try again."
+- **Error**: "Calibration failed — Please check your input files and try again." (if neither AMC nor VGGT has completed)
 - **Init/Ready**: "Please run calibration in the Execute step"
 
 ![Results Not Ready](resources/images/vss-autocalib-ui/step6_if_amc_is_running.jpg)
@@ -1019,17 +1126,16 @@ Export complete calibration data in various formats.
 
 **Export Options**
 
-1. **Full Export AMC** — complete calibration data with ROI/tripwire world coordinates; uses AMC projection matrix; JSON format; filename: `{project_name}_exported.json`
-2. **Full Export VGGT** *(if available)* — same as above using VGGT projection matrix; filename: `{project_name}_exported_vggt.json`
-3. **MV3DT ZIP AMC** — MV3DT-compatible format for verification; ZIP archive; filename: `{project_name}_mv3dt.zip`
-4. **MV3DT ZIP VGGT** *(if available)* — MV3DT-compatible format with VGGT results; ZIP archive; filename: `{project_name}_vggt_mv3dt.zip`
-5. **Delete Results** — removes all calibration results; project returns to READY state; allows re-running calibration
+1. **Full Export** — One control on the Results page; opens a dialog for optional metadata and download. Complete calibration JSON with ROI/tripwire **world coordinates**. **Choose AMC or VGGT inside the dialog** when both calibrations completed (toggle: **Download / edit AMC export** vs **Download / edit VGGT export**); otherwise the available result type is used automatically. **AMC** uses the AMC projection matrix; saved/downloaded as `{project_name}_exported.json`. **VGGT** uses the VGGT projection matrix (multi-camera, when VGGT completed); saved/downloaded as `{project_name}_exported_vggt.json`.
+2. **MV3DT ZIP AMC** — MV3DT-compatible format for verification; ZIP archive; filename: `{project_name}_mv3dt.zip`
+3. **MV3DT ZIP VGGT** *(if available)* — MV3DT-compatible format with VGGT results; ZIP archive; filename: `{project_name}_vggt_mv3dt.zip`
+4. **Delete Results** — removes all calibration results; project returns to READY state; allows re-running calibration
 
 ![Export Options](resources/images/vss-autocalib-ui/export_options.jpg)
 
 **How to Export**
 
-- **Full Export AMC** and **Full Export VGGT**: The JSON is loaded in an editor where you can view and edit the calibration data. Once you are done editing, click **Export AMC** or **Export VGGT** to download the file automatically to your browser's download folder.
+- **Full Export**: Click **Full Export**, choose **AMC** or **VGGT** in the dialog when both are available, optionally edit metadata or open the manual JSON editor by clicking **Full Control**, then click **Download JSON**. The file downloads to your browser's download folder.
 
 ![Export JSON Editor](resources/images/vss-autocalib-ui/export_json.jpg)
 
@@ -1043,47 +1149,48 @@ Export complete calibration data in various formats.
   4. Success message confirms export
 
 > **Export Options Explained:**
-> - **Full Export**: Complete calibration with ROI/tripwire world coordinates
-> - **MV3DT ZIP**: MV3DT-compatible format for verification
+> - **Full Export**: Complete calibration with ROI/tripwire world coordinates; pick AMC or VGGT in the dialog when both exist
+> - **MV3DT ZIP**: MV3DT-compatible format for verification (separate AMC and VGGT buttons)
 
 ### ROI & Tripwire Verification
 
-Verify that ROIs and tripwires are correctly projected onto the layout.
+Verify per-camera and **global** ROIs and tripwires: how they appear on each rectified stream, on the layout map (pixel space), and on the **world map** (BEV) after calibration projection.
 
 **Features**
-- **Side-by-Side View**: Camera view and Bird's Eye View (BEV) simultaneously
-- **Camera Selection**: Choose which camera to verify
-- **Result Type Tabs**: Switch between AMC and VGGT projections
-- **Zoom Controls**: Zoom in/out on BEV for detailed inspection
-- **Pan Support**: Drag to pan around zoomed BEV
+- **Side-by-side layout**: Left panel (camera or layout map) and **World map (layout + projection)** on the right
+- **Annotation target**: **Camera** (per-stream rectified view) or **Global ROIs / tripwires** (layout `layout.png` pixels; requires layout from Step 2)
+- **Result type tabs** (right panel): **AMC** or **VGGT** world-map projection when both calibrations completed
+- **Global features on world map**: Global ROIs and tripwires projected into world coordinates and drawn in **purple** on the BEV
+- **Global features on camera view**: The same global ROIs/tripwires **re-projected** onto the selected camera when visible in that field of view—also **purple**
+- **Sensor assignment checkboxes** (camera target): Include or exclude the selected camera from each global ROI/tripwire `sensors` list in the export JSON
 
 **How to Use**
 
-> **Prerequisite**: You must click **Full Export AMC** (and **Full Export VGGT** if VGGT results are available) before using this verification feature.
-
 1. Click **Show ROI & Tripwire Verification**
+2. Choose **Camera** or **Global ROIs / tripwires** in the annotation target toggle
+3. **Camera** target: pick a stream from **Select Camera**; review the left rectified frame and the right world map; use **AMC** / **VGGT** tabs on the world map as needed
+4. **Global** target: left panel shows global shapes on **layout.png** (pixel coordinates); right panel shows their **world-map** projection in purple
+5. Under the camera view, use checkboxes labeled **Global ROI:** / **Global tripwire:** to include or exclude that camera in each ROIs/Tripwires `sensors` list (only global items projected to that camera are listed)
+6. Use world-map zoom controls for detail; click **Close** when finished
 
 ![Show ROI and Tripwires](resources/images/vss-autocalib-ui/show_roi_and_tripwires.jpg)
 
-2. Select a camera from the dropdown
-3. View annotations on the camera frame (left panel)
-4. View projected annotations on BEV (right panel)
-5. Switch between AMC and VGGT tabs to compare
-6. Use zoom controls for detailed inspection
-
 ![ROI and Tripwire Verification](resources/images/vss-autocalib-ui/roi_and_tripwire_verification.jpg)
 
-**Camera View (Left Panel)**
-- Shows rectified camera frame
-- ROIs displayed as green polygons
-- Tripwire lines displayed as red lines
-- Tripwire directions displayed as yellow arrows
+**Left Panel — Camera target**
+- Rectified video frame for the selected camera
+- **Per-camera** annotations: ROIs (green polygons), tripwire lines (red), tripwire directions (yellow arrows)
+- **Global** ROIs (purple regions) and global tripwires (purple lines) when they project into this camera's view
+- **Global sensor checkboxes**: For each global ROI/tripwire that applies to this camera, check to keep the camera in that feature's `sensors` list in the export JSON; uncheck to exclude it
 
-**Bird's Eye View (Right Panel)**
-- Shows layout map with projected annotations
-- All cameras' annotations shown with different colors
-- Zoom: 50% to 500%
-- Pan: Click and drag when zoomed
+**Left Panel — Global target**
+- **Layout map (pixel coordinates)**: Same global ROIs and tripwires drawn in Parameters on `layout.png` (green / red / yellow in layout space)
+- Compare with the right panel to confirm world projection matches the layout drawing
+
+**Right Panel — World map (layout + projection)**
+- Bird's-eye / world-coordinate map with all projected annotations for the active **AMC** or **VGGT** result
+- **Per-camera** ROIs and tripwires for all streams, plus **global** ROIs and tripwires in **purple**
+- Zoom: 50% to 500%; pan by dragging when zoomed
 
 **Zoom Controls**
 - **Zoom In** (🔍+): Increase zoom level
@@ -1188,24 +1295,81 @@ AutoMagicCalib makes several assumptions about input data structure. Please ensu
 
 ## Input Video Contents:
 There must be objects moving around the scene, because AMC relies on tracking results.
-Cameras must be specified in order and have overlapping areas: `cam_00` overlaps with `cam_01`, and `cam_01` overlaps with `cam_02`, ...
+For **multi-camera** projects, cameras must be specified in order and have overlapping areas: `cam_00` overlaps with `cam_01`, and `cam_01` overlaps with `cam_02`, ...
+For **single-camera** projects, one synchronized video (or one RTSP capture) is sufficient.
 
 ## Input Video Resolution:
-Video files' resolution should be 1920x1080. 
+Uploaded video files' resolution should be 1920×1080.
 
 ## Time-synced Input Videos:
-Input video files from all cameras must be synchronized
+Input video files or RTSP streams from all cameras must be synchronized and cover the **same time window**. For RTSP, use one combined **Start capture** for every stream—staggered or later-added streams break calibration.
 
 
 # Custom Dataset
 
 For a custom dataset, you should prepare the following items:
 
-- **Input videos** — Camera video files for calibration
-- **A floor map** — Layout/map image of the surveillance area
+- **Input videos or RTSP streams** — Camera video files **or** time-synchronized RTSP streams
+- **A floor map** — Layout/map image of the surveillance area (PNG)
+- **Alignment data** — `alignment_data.json` (upload or create in the UI; see [Alignment Data](#alignment-data-alignment_datajson))
 - **Ground truth data (optional)** — For calibration evaluation
 
-The input videos required for calibration must be uploaded to the tool. Users should pay close attention to the order in which they upload the video streams, as this order implicitly determines the pairing of the cameras. For optimal results, consecutive camera pairs should have a significant amount of overlapping Field of View (FOV).
+## Input Requirements
+
+**Video input (file upload or RTSP)**
+
+- **Formats** (file upload): MP4
+- **Resolution**: **1920 × 1080** is required for uploaded videos (matches the workflow and evaluation pipeline)
+- **Camera count**: One video or stream for **single-camera** calibration; **two or more** for multi-camera
+- **Time synchronization**: All multi-camera videos or RTSP streams must cover the **same time window**—use one combined RTSP **Start capture** for every stream, or upload clips that were recorded in sync. Staggered or later-added streams break calibration.
+- **Order**: List or upload streams in **order of overlapping field of view (FOV)** (first = first camera in the overlap chain), whether using files or RTSP URLs.
+
+**Single-camera datasets**
+
+A valid single-camera project needs:
+
+- One synchronized video (or one RTSP capture)
+- One layout/map image
+- `alignment_data.json` with at least **4** point sets; each set has **two** `[x, y]` pairs (camera + layout/BEV)—see [Alignment Data](#alignment-data-alignment_datajson)
+
+**Multi-camera datasets**
+
+- Two or more time-synchronized videos or RTSP streams
+- One layout/map image
+- `alignment_data.json` with at least **4** point sets; each set has one point per camera plus the layout (see [Alignment Data](#alignment-data-alignment_datajson))
+
+Users should pay close attention to upload and stream order, as this order implicitly determines camera pairing. For optimal results, consecutive camera pairs should have a significant amount of overlapping Field of View (FOV).
+
+## Alignment Data (alignment_data.json)
+
+Alignment data maps corresponding points between camera views and the layout (bird's eye view). Prepare or create this file before running calibration.
+
+**Requirements**
+
+- Minimum **4** complete point sets
+- Coordinates are pixel positions on the original camera frames and layout image
+
+**Multi-camera** — three `[x, y]` pairs per set (camera 0, camera 1, layout):
+
+```json
+[
+  [[x0_cam0, y0_cam0], [x0_cam1, y0_cam1], [x0_layout, y0_layout]],
+  [[x1_cam0, y1_cam0], [x1_cam1, y1_cam1], [x1_layout, y1_layout]]
+]
+```
+
+**Single-camera** — two `[x, y]` pairs per set (camera, layout):
+
+```json
+[
+  [[x0_cam, y0_cam], [x0_layout, y0_layout]],
+  [[x1_cam, y1_cam], [x1_layout, y1_layout]]
+]
+```
+
+For projects with more than two cameras, each point set includes one pair per camera plus the layout point (same pattern as multi-camera above, extended to all views).
+
+You can upload `alignment_data.json` on the Manual Alignment step or create it interactively in the UI.
 
 ## Guidelines for Input Videos to Achieve Optimal Calibration Results
 
@@ -1291,7 +1455,7 @@ This file has camera parameters including intrinsic and extrinsic parameters. Th
 
 | Parameter | Description |
 |---|---|
-| `id` | Unique string identifier for the sensor (e.g., Camera, Camera_01, Camera_02, …). This string should match the camera ID in `ground_truth.json`. |
+| `id` | Unique string identifier for the sensor (e.g., Camera, Camera_01, Camera_02, …). **Must match exactly** the camera keys used under `2d bounding box visible` in `ground_truth.json` for that sensor—mismatched IDs will break evaluation. |
 | `intrinsicMatrix` | 3×3 camera intrinsic parameter matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
 | `extrinsicMatrix` | 3×4 camera extrinsic parameter matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
 | `cameraMatrix` | 3×4 combined camera projection matrix. Follows the same definition in [OpenCV documentation](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html). |
@@ -1360,6 +1524,133 @@ This file has object information including 3D locations and bounding boxes. The 
 | `object name` | Unique object name |
 | `3d location` | Object's 3D location in meters [x, y, z] |
 | `2d bounding box visible` | 2D bounding boxes in each camera view [x_min, y_min, x_max, y_max] |
+
+
+# Troubleshooting
+
+This section provides solutions to common issues and error messages.
+
+## Cannot Access the UI
+
+**Symptom**: Browser shows "Unable to connect" or "Connection refused"
+
+**Possible Causes**: Backend server not running; incorrect URL or port; network connectivity issues; firewall blocking access
+
+**Solutions**:
+
+1. **Verify server is running**
+   ```bash
+   docker ps | grep auto-calib
+   # Or from compose directory:
+   docker compose ps
+   ```
+2. **Verify URL and port** — check browser address bar; try `http://localhost:<AUTO_MAGIC_CALIB_UI_PORT>` from the server machine
+3. **Check network connectivity**
+   ```bash
+   ping <server-ip>
+   nc -vz <server-ip> <port>
+   ```
+4. **Check firewall settings** — ensure the UI port is allowed
+
+## Port Already in Use
+
+**Symptom**: Docker container fails to start with "port is already allocated" error
+
+**Solution**:
+
+1. Check what's using the port:
+   ```bash
+   sudo lsof -i :5000
+   sudo lsof -i :8000
+   ```
+2. Change ports in `compose/.env` (`AUTO_MAGIC_CALIB_MS_PORT`, `AUTO_MAGIC_CALIB_UI_PORT`) and restart:
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+3. Or stop the conflicting process/container
+
+## API_URL_NOT_PROVIDED Error
+
+**Symptom**: UI loads but shows "API_URL_NOT_PROVIDED" error
+
+**Cause**: Docker Compose started without proper `HOST_IP` environment variable
+
+**Solution**:
+
+1. Stop services: `docker compose down`
+2. Verify `HOST_IP=<your_host_ip>` is set in `compose/.env`
+3. Restart: `docker compose up -d`
+
+## Verification Fails
+
+**Symptom**: "Verify Project" button shows error
+
+**Solutions**:
+
+1. **Check requirements checklist**
+   - ✓ At least **1** video or RTSP clip for **single-camera**; **2 or more** for **multi-camera**
+   - ✓ Layout image uploaded
+   - ✓ Alignment data uploaded or created
+2. **Verify alignment data**
+   - Minimum 4 complete point sets
+   - **Multi-camera**: each set must include points for every camera view plus the layout (BEV) point
+   - **Single-camera**: each set must include **camera + layout** point pairs (two `[x, y]` pairs per set)
+3. **Check video files** — ensure videos are not corrupted; re-upload if needed
+4. **Check server logs**: `docker compose logs | grep -i error`
+
+## Calibration Fails or Takes Too Long
+
+**Symptom**: Calibration fails, runs too long (>30 minutes), or results look wrong
+
+**Solutions**:
+
+1. **Check input files** — video quality, layout image scale/orientation, alignment on ground plane
+2. **Check video synchronization** — same time window for all cameras; for RTSP, one combined capture for all streams
+3. **Review calibration parameters** (Settings on Parameters step) — especially **Layout Pixels Per Meter** (`layout_px_per_m`) under Evaluation Configuration; wrong scale causes misaligned BEV/overlays
+4. **Check server resources**: `top`, `nvidia-smi`
+5. **Try VGGT** (multi-camera) if AMC failed after rectification and **VGGT** state is **READY**
+6. **Reset project** and retry after fixing inputs
+
+## RTSP Capture Issues
+
+**Symptom**: RTSP capture card missing, capture fails, or ingested clips are out of sync
+
+**Solutions**:
+
+1. **Verify VIOS configuration** — confirm VIOS is running; set `VIOS_BASE_URL` in deployment `.env` if using VSS/VIOS deployment
+2. **Use source RTSP URLs** — for VIOS pre-registered streams, use the **source URL** (e.g., NVStreamer URL), not the VIOS-proxied URL
+3. **Capture timing** — configure **all** streams, then run **one** **Start capture**; minimum **60** seconds; wait for **COMPLETED** or **CANCELLED** before **Ingest to project**
+4. **Check server logs**: `docker compose logs | grep -i -E 'rtsp|vios|capture|ingest'`
+
+## VGGT Calibration Issues
+
+**Symptom**: VGGT section unavailable, fails, or does not appear on Results
+
+**Solutions**:
+
+1. **Confirm project type** — VGGT is **multi-camera only** (two or more videos); not supported for single-camera
+2. **Verify model installation** — download `vggt_1B_commercial.pt` and place in `$MODEL_DIR/vggt/`
+3. **Run at the right time** — run **Start Calibration** (AMC) first so rectification outputs exist; confirm **VGGT** state is **READY**
+4. **View VGGT results** — when VGGT completes, project state becomes **COMPLETED** even if AMC failed—open **Results** and use the **VGGT** tab
+5. **Check server logs**: `docker compose logs | grep -i vggt`
+
+## Results and Export Issues
+
+**No results available** — Results is available when AMC **or** VGGT completes successfully. If AMC failed but VGGT finished, use the **VGGT** tab on Results.
+
+**Export fails** — check browser download settings, popup blocker, disk space; try a different browser; check `docker compose logs | grep -i export`
+
+**ROI verification not working or BEV looks wrong**
+
+1. Verify calibration completed (AMC and/or VGGT); click **Show ROI & Tripwire Verification** (a prior **Full Export** download is not required)
+2. Check **Layout Pixels Per Meter** (`layout_px_per_m`) in Settings on the Parameters step
+3. Compare layout pixels (Global target) with world-map projection; switch AMC/VGGT tabs if one result looks better
+4. Revisit alignment points and time-synchronized inputs
+
+## Performance Issues
+
+**UI slow or canvas laggy** — refresh browser, close other tabs, enable hardware acceleration, reduce zoom level, use latest Chrome.
 
 
 # License
