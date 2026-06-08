@@ -85,7 +85,7 @@ Download the VGGT commercial model from [HuggingFace](https://huggingface.co/fac
 > **Note:** You need to sign up for a HuggingFace account and accept the model license to download.
 
 #### Optional VIOS Setup for RTSP Capture
-RTSP capture endpoints require `VIOS_BASE_URL`. If a VIOS server is already reachable from the AMC host, verify it before setting `VIOS_BASE_URL` in `compose/.env`. Without VIOS, the rest of the calibration workflow can run, but `/rtsp/*` capture endpoints remain disabled.
+RTSP capture endpoints require `VIOS_BASE_URL`. If a VIOS server is already reachable from the AMC host, verify it before setting `VIOS_BASE_URL` in `compose/.env`. Without VIOS, the rest of the calibration workflow can run, but RTSP support remain disabled.
 
 If VIOS is not deployed yet, use the VIOS deployment assets from the VSS repository:
 
