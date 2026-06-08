@@ -18,7 +18,7 @@ The service supports both a geometry-based approach (AMC) using object trajector
 - Complete end-to-end pipeline for single-camera and multi-camera calibration
 - Bundle adjustment for improved accuracy
 - Evaluation against ground truth data
-- **Web UI workflow**: 6-step guided calibration with project management, RTSP capture (VIOS), per-camera and global (layout-map) ROI/tripwire drawing, manual alignment, AMC and optional VGGT calibration, and export/verification tools
+- **Web UI workflow**: 6-step guided calibration with project management, RTSP URLs as Input (VIOS), per-camera and global (layout-map) ROI/tripwire drawing, manual alignment, AMC and optional VGGT calibration, and export/verification tools
 
 ## Table of Contents
 - [Features](#features)
@@ -266,7 +266,7 @@ At the top of the page, you'll see a status summary showing:
 - **Formats**: MP4
 - **Required Video Resolution**: 1920×1080
 
-Provide camera inputs using **either** file upload **or** RTSP capture (one camera for single-camera calibration, two or more for multi-camera). **RTSP capture is available only when VIOS is configured on the Auto Calibration server**; otherwise use file upload. The UI does not allow an active file-upload queue and RTSP capture at the same time; remove file-uploaded clips before switching to RTSP, and vice versa.
+Provide camera inputs using **either** file upload **or** RTSP URLs (one camera for single-camera calibration, two or more for multi-camera). **RTSP URLs as Input is available only when VIOS is configured on the Auto Calibration server**; otherwise use file upload. The UI does not allow an active file-upload queue and RTSP capture at the same time; remove file-uploaded clips before switching to RTSP, and vice versa.
 
 **Option A: Upload video files**
 
@@ -284,9 +284,9 @@ Provide camera inputs using **either** file upload **or** RTSP capture (one came
 - **Delete Video**: Click the trash icon (🗑️) next to a video to remove it
 - **Re-upload**: Delete and upload again if needed
 
-**Option B: RTSP capture (VIOS)**
+**Option B: RTSP YRLs as Input (VIOS)**
 
-*(Shown only when the Auto Calibration service exposes RTSP capture; VIOS is configured on the server side.)*
+*(Shown only when VIOS is configured on the server side.)*
 
 1. Finish or clear any pending **Video Files** selection or upload before starting RTSP; if the project already has clips from file upload, remove them under **Video Files** first
 2. In the **RTSP capture (VIOS)** card, set **Duration (seconds)** (minimum **60** seconds, per server requirement)
@@ -1296,7 +1296,7 @@ AutoMagicCalib makes several assumptions about input data structure. Please ensu
 ## Input Video Contents:
 There must be objects moving around the scene, because AMC relies on tracking results.
 For **multi-camera** projects, cameras must be specified in order and have overlapping areas: `cam_00` overlaps with `cam_01`, and `cam_01` overlaps with `cam_02`, ...
-For **single-camera** projects, one synchronized video (or one RTSP capture) is sufficient.
+For **single-camera** projects, one video (or one RTSP URL) is sufficient.
 
 ## Input Video Resolution:
 Uploaded video files' resolution should be 1920×1080.
@@ -1328,7 +1328,7 @@ For a custom dataset, you should prepare the following items:
 
 A valid single-camera project needs:
 
-- One synchronized video (or one RTSP capture)
+- One synchronized video (or one RTSP URL)
 - One layout/map image
 - `alignment_data.json` with at least **4** point sets; each set has **two** `[x, y]` pairs (camera + layout/BEV)—see [Alignment Data](#alignment-data-alignment_datajson)
 
@@ -1373,7 +1373,7 @@ You can upload `alignment_data.json` on the Manual Alignment step or create it i
 
 ## Guidelines for Input Videos to Achieve Optimal Calibration Results
 
-To ensure the most accurate camera calibration, careful consideration should be given to how the input videos are captured. The following points detail how to maximize the quality of the calibration outcome.
+To ensure the most accurate camera calibration, careful consideration should be given to how the input videos provided. The following points detail how to maximize the quality of the calibration outcome.
 
 ### 1. Minimizing Lens Distortion
 
