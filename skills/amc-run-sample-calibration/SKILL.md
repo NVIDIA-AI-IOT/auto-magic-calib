@@ -6,9 +6,8 @@ service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
 license: "Apache-2.0"
+data_classification: public
 metadata:
-  author: "NVIDIA CORPORATION"
-  license: "Apache-2.0"
   tags: [amc, calibration, sample, rest-api, validation, python]
 ---
 
@@ -40,8 +39,8 @@ The sample includes GT, so the run produces evaluation metrics (L2 distance, rep
 
 - [ ] AMC microservice running (follow `skills/amc-setup-calibration-stack/SKILL.md` if not)
 - [ ] Sample zip present at `assets/sdg_08_2_sample_data_010926.zip`
-- [ ] Python 3 with `requests` available — or use the Swagger UI path below
-  - The inline run block self-heals: if `requests` is missing it creates a throwaway venv under `${TMPDIR:-/tmp}/amc-sample-test-venv` (nothing written to the repo)
+- [ ] Python 3 with `requests` available, or use the Swagger UI path below
+  - The bundled script self-heals: if `requests` is missing it creates a throwaway venv under `${TMPDIR:-/tmp}/amc-sample-test-venv` (nothing written to the repo)
   - If `python3 -m venv` itself fails with `ensurepip not available`: `sudo apt install -y python3-venv python3-pip`
 
 ## Instructions
@@ -51,15 +50,16 @@ The sample includes GT, so the run produces evaluation metrics (L2 distance, rep
 1. Run `skills/amc-setup-calibration-stack/SKILL.md` first.
 2. Wait for `/v1/ready` to return OK.
 3. Extract sample data (snippet below) — idempotent, safe to re-run.
-4. Run the inline block in [Run Inline (No File Written)](#run-inline-no-file-written). Do **not** save it as a `.py` file — pipe via heredoc so the user's repo stays clean.
+4. Run the bundled script in [Run Script](#run-script).
 5. Report final metrics + UI URL for manual inspection.
+6. VGGT refinement is attempted by default when the project reports `vggt_state: READY`; otherwise the script explains that VGGT setup is optional and can be enabled later for refinement.
 
 **"test sample dataset" (MS already running):**
 
 1. Detect backend: scan ports 8000–8009 for a `/v1/ready` response.
 2. If none → point to the setup skill.
 3. Extract sample data if not already cached.
-4. Run the inline block (heredoc-piped Python — no file written).
+4. Run the bundled script.
 5. Report metrics.
 
 ### Detect Running Backend
@@ -94,202 +94,13 @@ ls "$SAMPLE_DIR"
 # Expected (possibly inside a wrapper folder): alignment_data/  GT.zip  videos/
 ```
 
-## Run Inline (No File Written)
+## Run Script
 
-Run the test on the fly — pipe Python into `python3` via heredoc so nothing is saved into the user's repo. The block below is fully self-contained: it resolves `REPO_ROOT` via `git rev-parse`, reads `MS_PORT` from `.env`, picks (or creates) a Python with `requests` installed, and then pipes the inline script. It is safe to copy/paste verbatim into any shell where the AMC backend is reachable on `localhost`. To re-test, just run it again; each invocation creates a fresh project.
-
-```bash
-# Resolve env
-export REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-COMPOSE_DIR="$REPO_ROOT/compose"
-export MS_PORT="${MS_PORT:-$(grep AUTO_MAGIC_CALIB_MS_PORT "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2)}"
-export MS_PORT="${MS_PORT:-8000}"
-export BASE_URL="http://localhost:${MS_PORT}/v1"
-# Optional: export SAMPLE_DIR=/abs/path/to/extracted/sample to override autodetection
-
-# Pick a python3 that has `requests`; create a throwaway venv if needed (no repo files written)
-PY=python3
-"$PY" -c 'import requests' 2>/dev/null || {
-  VENV="${TMPDIR:-/tmp}/amc-sample-test-venv"
-  python3 -m venv "$VENV" 2>/dev/null || {
-    echo "ERROR: python3-venv not available. Run: sudo apt install -y python3-venv python3-pip" >&2
-    exit 1
-  }
-  "$VENV/bin/pip" install --quiet requests
-  PY="$VENV/bin/python3"
-}
-
-"$PY" - <<'PY'
-import os
-import sys
-import time
-from pathlib import Path
-
-import requests
-
-# REPO_ROOT comes from the surrounding shell; fall back to cwd when missing
-# (no `__file__` to lean on when fed via stdin).
-REPO_ROOT = Path(os.environ.get("REPO_ROOT") or Path.cwd())
-MS_PORT = os.environ.get("MS_PORT", "8000")
-BASE_URL = os.environ.get("BASE_URL", f"http://localhost:{MS_PORT}/v1")
-
-# Sample zip lives in assets/.
-def _find_sample_dir() -> Path:
-    candidate = REPO_ROOT / "assets" / ".cache" / "sdg_08_2_sample_data_010926"
-    if candidate.exists():
-        return candidate
-    sys.exit(
-        "Sample data not extracted. Run the extraction snippet from this skill first, "
-        "or pass SAMPLE_DIR= explicitly."
-    )
-
-# NOTE: do NOT write `Path(os.environ.get("SAMPLE_DIR", "")) or _find_sample_dir()`
-# — Path("") evaluates to Path('.') which is truthy, so the `or` never falls
-# through and the script silently picks `.` (typically the repo root). Rglobbing
-# `cam_*.mp4` from there can sweep dozens of stale videos from prior test runs.
-_env_sample = os.environ.get("SAMPLE_DIR")
-SAMPLE_DIR = Path(_env_sample).resolve() if _env_sample else _find_sample_dir()
-
-# Locate sample files (handle an optional wrapper folder from unzip)
-def _find(path: Path, name: str) -> Path:
-    hits = list(path.rglob(name))
-    if not hits:
-        sys.exit(f"Could not find {name} under {path}")
-    return hits[0]
-
-# Anchor video discovery on the canonical `videos/` directory if present
-# (non-recursive). Only fall back to rglob if no `videos/` folder exists,
-# and assert a sane upper bound so a misconfigured SAMPLE_DIR fails loud
-# instead of uploading every cam_*.mp4 in the tree.
-videos_dirs = list(SAMPLE_DIR.rglob("videos"))
-videos_dir = next((d for d in videos_dirs if d.is_dir()), None)
-if videos_dir is not None:
-    videos = sorted(videos_dir.glob("cam_*.mp4"))
-else:
-    videos = sorted(SAMPLE_DIR.rglob("cam_*.mp4"))
-
-alignment = _find(SAMPLE_DIR, "alignment_data.json")
-layout = _find(SAMPLE_DIR, "layout.png")
-gt_zip = _find(SAMPLE_DIR, "GT.zip")
-
-assert len(videos) >= 2, f"Need >=2 cam_XX.mp4 under {SAMPLE_DIR}, found {len(videos)}"
-# Sample dataset has 4 cameras — bail if SAMPLE_DIR is so wide we'd upload
-# unrelated videos. Override SAMPLE_DIR explicitly if you need a different one.
-assert len(videos) <= 16, (
-    f"Found {len(videos)} cam_*.mp4 under {SAMPLE_DIR} — looks like SAMPLE_DIR "
-    "is too broad (probably picked up stale test caches). Set SAMPLE_DIR to the "
-    "extracted sample folder explicitly and re-run."
-)
-print(f"Base URL:   {BASE_URL}")
-print(f"Sample dir: {SAMPLE_DIR}")
-print(f"Videos:     {[v.name for v in videos]}")
-
-s = requests.Session()
-DEFAULT_TIMEOUT = (10, 120)  # (connect, read) — keeps hung MS calls from blocking the 3600s budget
-
-# Step 1 — Create project
-project_name = f"sample_test_{int(time.time())}"
-r = s.post(f"{BASE_URL}/create_project", data={"project_name": project_name}, timeout=DEFAULT_TIMEOUT)
-r.raise_for_status()
-project_id = r.json()["project_id"]
-print(f"[1] Created project {project_name} → {project_id}")
-
-# Step 2 — Upload videos (sorted alphabetically; upload order defines camera indices)
-files, handles = [], []
-for v in videos:
-    f = open(v, "rb"); handles.append(f)
-    files.append(("files", (v.name, f, "video/mp4")))
-r = s.post(f"{BASE_URL}/upload_video_files/{project_id}", files=files, timeout=300)
-for f in handles: f.close()
-r.raise_for_status()
-print(f"[2] Uploaded {len(videos)} videos")
-
-# Step 3 — Upload alignment JSON
-with open(alignment, "rb") as f:
-    r = s.post(f"{BASE_URL}/upload_alignment/{project_id}",
-               files={"alignment_file": (alignment.name, f, "application/json")},
-               timeout=DEFAULT_TIMEOUT)
-    r.raise_for_status()
-print(f"[3] Uploaded alignment JSON")
-
-# Step 4 — Upload layout PNG
-with open(layout, "rb") as f:
-    r = s.post(f"{BASE_URL}/upload_layout/{project_id}",
-               files={"layout_file": (layout.name, f, "image/png")},
-               timeout=DEFAULT_TIMEOUT)
-    r.raise_for_status()
-print(f"[4] Uploaded layout PNG")
-
-# Step 5 — Upload GT zip (enables evaluation metrics)
-with open(gt_zip, "rb") as f:
-    r = s.post(f"{BASE_URL}/upload_gt_file/{project_id}",
-               files={"gt_file": (gt_zip.name, f, "application/zip")}, timeout=120)
-    r.raise_for_status()
-print(f"[5] Uploaded GT zip")
-
-# Step 6 — Verify project
-r = s.post(f"{BASE_URL}/verify_project/{project_id}", timeout=DEFAULT_TIMEOUT)
-r.raise_for_status()
-state = r.json()["project_state"]
-print(f"[6] verify_project → {state}")
-if state != "READY":
-    raise RuntimeError(f"Expected READY, got {state}")
-
-# Step 7 — Start calibration (defaults work for this dataset)
-r = s.post(f"{BASE_URL}/calibrate/{project_id}", json={"detector_type": "resnet"}, timeout=DEFAULT_TIMEOUT)
-r.raise_for_status()
-print(f"[7] Calibration started (detector=resnet)")
-
-# Step 8 — Poll for completion (~10–30 min for sample). Print on every state
-# change, plus a heartbeat at least once a minute so a long RUNNING state still
-# shows progress.
-print(f"[8] Polling (expect 10–30 min)...")
-start, last_state, last_beat = time.time(), "", 0.0
-while time.time() - start < 3600:
-    r = s.get(f"{BASE_URL}/get_project_info/{project_id}", timeout=DEFAULT_TIMEOUT)
-    r.raise_for_status()
-    st = r.json()["project_info"]["project_state"]
-    mins, secs = divmod(int(time.time() - start), 60)
-    if st != last_state or time.time() - last_beat >= 60:
-        print(f"    [{mins:>3}m {secs:02d}s] {st}", flush=True)
-        last_state, last_beat = st, time.time()
-    if st == "COMPLETED":
-        print(f"[8] Completed in {mins}m {secs:02d}s")
-        break
-    if st == "ERROR":
-        # Surface the tail of the calibration log so the failure is actionable.
-        try:
-            log_lines = s.get(f"{BASE_URL}/amc/calibrate/{project_id}/log", timeout=DEFAULT_TIMEOUT).text.splitlines()
-            print("    --- last calibration log lines ---")
-            for line in log_lines[-20:]:
-                print(f"    {line}")
-        except Exception:
-            pass
-        sys.exit(f"Calibration failed. Full log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
-    time.sleep(10)
-else:
-    sys.exit("Timed out after 60 min")
-
-# Step 9 — Evaluation statistics (GT was uploaded, so this should return metrics)
-r = s.get(f"{BASE_URL}/result/{project_id}/evaluation_statistics", timeout=DEFAULT_TIMEOUT)
-if r.status_code == 200:
-    stats = r.json().get("statistics", r.json())
-    print(f"\n[9] Evaluation statistics:")
-    for k, v in stats.items():
-        print(f"    {k}: {v}")
-else:
-    print(f"\n[9] evaluation_statistics returned {r.status_code}: {r.text[:200]}")
-
-print(f"\nProject ID: {project_id}")
-print("Inspect in UI: open the project in the web UI to view results and overlay videos")
-PY
-```
-
-> **Why heredoc, not a `.py` file?** The skill is meant to run on demand against any user's checkout — writing `run_sample_test.py` into the repo would dirty their working tree. The `<<'PY'` quoting prevents shell expansion inside the script. Re-run the same block any time; each run creates a fresh project.
+Run `scripts/run_sample_calibration.py` from the `auto-magic-calib` repo root, or set `REPO_ROOT=/path/to/auto-magic-calib`. The script reads `compose/.env` for the backend port, accepts `BASE_URL`, `MS_PORT`, `SAMPLE_DIR`, and `RUN_VGGT` overrides, creates a fresh project each run, attempts VGGT when ready, and prints the NGC warehouse dataset note at the end.
 
 ## Alternative: Swagger UI Walkthrough
 
-> **Agent shortcut**: if the user explicitly requested a Swagger UI walkthrough (or said "no Python"), emit the table below and stop — do not invoke shell tooling, read other sections, or run the inline Python block.
+> **Agent shortcut**: if the user explicitly requested a Swagger UI walkthrough (or said "no Python"), emit the table below and stop — do not invoke shell tooling, read other sections, or run the bundled Python script.
 
 The microservice exposes an interactive OpenAPI UI at **`http://<HOST_IP>:<MS_PORT>/docs`**. If you prefer clicking through the API by hand:
 
@@ -308,13 +119,21 @@ The microservice exposes an interactive OpenAPI UI at **`http://<HOST_IP>:<MS_PO
    | 7 | `POST /v1/calibrate/{project_id}` | JSON: `{"detector_type": "resnet"}` |
    | 8 | `GET /v1/get_project_info/{project_id}` | Refresh every ~10 s until `project_state` = `COMPLETED` |
    | 9 | `GET /v1/result/{project_id}/evaluation_statistics` | Read L2 distance + reprojection error |
+   | 10 optional | `POST /v1/vggt/calibrate/{project_id}` then `GET /v1/vggt_results/{project_id}/evaluation_statistics` | Run only when `vggt_state` is `READY`; poll `vggt_state` until `COMPLETED` |
 
-This is the same sequence the Python script runs, just executed manually.
+This is the same sequence the bundled Python script runs, just executed manually. Step 10 is attempted by default when `vggt_state` is `READY`; otherwise it is skipped with setup guidance.
+
+### Status Fields from `get_project_info`
+
+`project_info.project_state` is the AMC calibration lifecycle for the project. Poll it until it reaches `COMPLETED` (or stop on `ERROR`).
+
+`project_info.vggt_state` is a **per-project** VGGT refinement lifecycle, a project-scoped status rather than a direct global service or model-load status. A newly created project can report `vggt_state: "INIT"` even when the VGGT model is present and mounted. The expected lifecycle is `INIT` → `READY` after AMC calibration completes → `RUNNING` while VGGT refinement runs → `COMPLETED` (or `ERROR`). Interpret `INIT` on a new or uncalibrated project as normal project state. If AMC calibration is complete and the project remains in a non-ready VGGT state, confirm VGGT setup and model availability with the setup skill checks and service logs.
 
 ## Success Criteria
 
 - Project reaches `project_state == "COMPLETED"` within ~30 min.
 - `/v1/result/{id}/evaluation_statistics` returns non-empty `statistics` (GT was uploaded).
+- VGGT either runs to `vggt_state == "COMPLETED"` and reports `/v1/vggt_results/{id}/evaluation_statistics`, or is skipped with setup guidance because the project is not `READY` for VGGT.
 - No `ERROR` state encountered.
 
 Representative metrics for the sample (yours should be similar):
@@ -367,9 +186,15 @@ docker compose -f "$REPO_ROOT/compose/compose.yml" logs -f auto-magic-calib-ms
 | Upload returns 413 | Raise server upload limit, or split files (sample files are <200 MB total so this is unusual) |
 | Port scan finds no backend | Backend not running — run `amc-setup-calibration-stack` skill |
 
+## Additional Sample Dataset
+
+The root `README.md` also documents `nv_warehouse_032326.zip`, a real-world warehouse dataset available from NGC. Download it with `ngc registry resource download-version "nvidia/amc-nv-warehouse"`; then use `amc-run-video-calibration`, upload `nv_warehouse_config.json` in the config step, and run with the `transformer` detector. It does not include ground-truth data.
+
 ## Related Skills
 
 - `skills/amc-setup-calibration-stack/SKILL.md` — launch MS + UI (prerequisite).
 - `skills/amc-run-video-calibration/SKILL.md` — run calibration on your own pre-recorded MP4s.
 
 Root `README.md` "Sample Data Setup" and "Calibration Workflow (UI)" sections cover the human-oriented path through the same sample.
+
+<!-- signing marker -->
