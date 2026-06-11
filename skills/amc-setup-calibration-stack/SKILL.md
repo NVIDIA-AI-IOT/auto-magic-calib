@@ -2,14 +2,13 @@
 name: "amc-setup-calibration-stack"
 description: "Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. Use when user says 'deploy auto calibration', 'launch auto calibration', 'launch AMC', 'start MS+UI', or 'set up auto-magic-calib'. Requires NGC API key."
 metadata:
-  author: "NVIDIA CORPORATION"
-  license: "Apache-2.0"
   tags: [amc, deepstream, docker, calibration, setup, ngc]
 owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
 license: "Apache-2.0"
+data_classification: public
 ---
 
 # Skill: Launch AutoMagicCalib Release Containers
@@ -57,11 +56,11 @@ docker ps
   ```
   Then ask the user to confirm `docker ps` works before continuing.
 
-> **Agent note**: If `docker ps` cannot be run from within the Claude Code sandbox, ask the user to confirm it works (e.g. "Can you confirm `docker ps` runs without sudo?") before proceeding.
+> **Agent note**: If `docker ps` cannot be run from within the agent sandbox, ask the user to confirm it works (e.g. "Can you confirm `docker ps` runs without sudo?") before proceeding.
 
 ### Step 0b: Resolve Repo Checkout
 
-The skill needs `compose/`, `assets/sdg_08_2_sample_data_010926.zip`, and a `models/` mount point — all of which live in the `auto-magic-calib` repo. If you're already inside a checkout, the skill uses it. Otherwise it offers to clone (via AskUserQuestion) into `~/auto-magic-calib`.
+The skill needs `compose/`, `assets/sdg_08_2_sample_data_010926.zip`, and a `models/` mount point — all of which live in the `auto-magic-calib` repo. If you're already inside a checkout, the skill uses it. Otherwise it asks for explicit user confirmation using the host's question mechanism; if none is available, ask in chat and wait before cloning into `~/auto-magic-calib`.
 
 ```bash
 REPO_URL="https://github.com/NVIDIA-AI-IOT/auto-magic-calib.git"
@@ -77,10 +76,11 @@ elif [ -d "$DEFAULT_CLONE_DIR/.git" ] && [ -f "$DEFAULT_CLONE_DIR/compose/compos
   REPO_ROOT="$DEFAULT_CLONE_DIR"
   echo "✓ Found existing clone at $REPO_ROOT"
 
-# 3. Nothing on disk — STOP and ask the user via AskUserQuestion (see Agent note
-#    below). Do NOT clone silently from this block.
+# 3. Nothing on disk — STOP and ask the user for confirmation using the
+#    host's question mechanism; if none is available, ask in chat and wait.
+#    Do NOT clone silently from this block.
 else
-  echo "No auto-magic-calib checkout found. Ask the user (AskUserQuestion):"
+  echo "No auto-magic-calib checkout found. Ask the user for confirmation:"
   echo "  Clone $REPO_URL into $DEFAULT_CLONE_DIR? [y/N]"
   echo "On 'y' — run: git clone \"$REPO_URL\" \"$DEFAULT_CLONE_DIR\""
   exit 1
@@ -91,7 +91,7 @@ export REPO_ROOT
 echo "REPO_ROOT=$REPO_ROOT"
 ```
 
-> **Agent note**: do **not** clone silently. Ask the user via AskUserQuestion first — e.g. "auto-magic-calib repo not found. Clone `https://github.com/NVIDIA-AI-IOT/auto-magic-calib` into `~/auto-magic-calib`? (or provide your own path)". Honour an alternate path if the user offers one. The clone is a few hundred MB (compose files + sample dataset + assets).
+> **Agent note**: do **not** clone silently. Ask the user first using the host's question mechanism; if none is available, ask in chat and wait. Example: "auto-magic-calib repo not found. Clone `https://github.com/NVIDIA-AI-IOT/auto-magic-calib` into `~/auto-magic-calib`? (or provide your own path)". Honour an alternate path if the user offers one. The clone is a few hundred MB (compose files + sample dataset + assets).
 
 ### Step 0c: Install Python venv (New Systems Only)
 
@@ -115,7 +115,7 @@ python3 -m venv "$HF_VENV" 2>/dev/null || {
 
 ### Step 1: Login to NGC
 
-Ask the user for their NGC API key via AskUserQuestion, then run:
+Ask the user for their NGC API key using the host's question mechanism; if none is available, ask in chat and wait. Then run:
 
 ```bash
 echo "<NGC_API_KEY>" | docker login nvcr.io --username '$oauthtoken' --password-stdin
@@ -138,7 +138,7 @@ else
 fi
 ```
 
-**To download VGGT** (ask user for HuggingFace token via AskUserQuestion):
+**To download VGGT** (ask the user for a HuggingFace token using the host's question mechanism; if none is available, ask in chat and wait):
 
 **Step 2a: Accept Model License** (required, one-time):
 1. Visit: https://huggingface.co/facebook/VGGT-1B-Commercial
@@ -148,7 +148,7 @@ fi
 **Step 2b: Get HuggingFace Token**:
 1. Visit: https://huggingface.co/settings/tokens
 2. Create new token with "Read" access (starts with `hf_...`)
-3. Ask user for token via AskUserQuestion — do NOT ask them to run a command
+3. Ask the user for the token using the host's question mechanism; if none is available, ask in chat and wait. Do NOT ask them to run a command
 
 **Step 2c: Download** (pass token via `HF_TOKEN` env var — keeps the secret out of `hf`'s argv / `ps aux`; no interactive login needed):
 ```bash
@@ -227,11 +227,18 @@ set_env_key PROJECT_DIR "../../projects"
 set_env_key MODEL_DIR "../../models"
 set_env_key HOST_IP "${HOST_IP}"
 
+# Keep timestamped .env backups out of git.
+GITIGNORE="$REPO_ROOT/.gitignore"
+touch "$GITIGNORE"
+grep -qxF "compose/.env.bak.*" "$GITIGNORE" || echo "compose/.env.bak.*" >> "$GITIGNORE"
+
 echo "✓ .env updated"
 cat .env
 ```
 
 **Important**: `HOST_IP` must be the machine's network IP (not `localhost`) so the UI container can reach the backend from a browser.
+
+Optional: set `VGGT_MODEL_PATH` only if the VGGT model is mounted at a non-default container path; default is `/tmp/vggt_model/vggt_1B_commercial.pt` inside the MS container.
 
 ### Step 4: Set Directory Permissions
 
@@ -245,7 +252,7 @@ mkdir -p projects
 
 # Set ownership (required for containers to write calibration outputs).
 # Do this AFTER VGGT download is complete (current user needs write access during download).
-# Confirm the user via AskUserQuestion before running sudo chown — it recursively changes
+# Get explicit user confirmation before running sudo chown — it recursively changes
 # ownership of $REPO_ROOT/projects and $REPO_ROOT/models to UID/GID 1000.
 [ -d projects ] && [ -d models ] || {
   echo "ERROR: expected projects/ and models/ under $REPO_ROOT" >&2; exit 1;
@@ -305,13 +312,38 @@ MS_PORT=$(grep AUTO_MAGIC_CALIB_MS_PORT $REPO_ROOT/compose/.env | cut -d= -f2)
 UI_PORT=$(grep AUTO_MAGIC_CALIB_UI_PORT $REPO_ROOT/compose/.env | cut -d= -f2)
 HOST_IP=$(grep HOST_IP $REPO_ROOT/compose/.env | cut -d= -f2)
 
-# Check microservice health (containers were already verified in Step 5)
-curl -s http://localhost:${MS_PORT}/v1/ready
-# Expected: {"code":0,"message":"VSS Auto Calibration Microservice is ready"}
+# Wait for microservice readiness. Cold image pulls or first startup can need
+# extra time after `docker compose up -d` returns.
+READY_URL="http://localhost:${MS_PORT}/v1/ready"
+echo "Waiting for microservice readiness at ${READY_URL} ..."
+ready_response=""
+for attempt in $(seq 1 24); do
+  if ready_response=$(curl -fsS --max-time 5 "${READY_URL}" 2>/dev/null) && \
+     echo "${ready_response}" | grep -q '"code"[[:space:]]*:[[:space:]]*0'; then
+    echo "Microservice ready: ${ready_response}"
+    break
+  fi
+  if [ "${attempt}" -lt 24 ]; then
+    printf "  [%02d/24] Microservice not ready yet; retrying in 5s...\n" "${attempt}"
+    sleep 5
+  fi
+done
+
+if ! echo "${ready_response}" | grep -q '"code"[[:space:]]*:[[:space:]]*0'; then
+  echo "ERROR: microservice did not report ready within 120 seconds: ${READY_URL}" >&2
+  echo "Check status and logs:" >&2
+  echo "  cd ${REPO_ROOT}/compose && docker compose ps" >&2
+  echo "  cd ${REPO_ROOT}/compose && docker compose logs auto-magic-calib-ms" >&2
+  exit 1
+fi
 
 # Check UI is serving
-curl -s -o /dev/null -w "%{http_code}" http://localhost:${UI_PORT}
-# Expected: 200
+UI_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://localhost:${UI_PORT}")
+if [ "${UI_STATUS}" != "200" ]; then
+  echo "ERROR: Web UI returned HTTP ${UI_STATUS}; check docker compose ps and UI logs." >&2
+  exit 1
+fi
+echo "Web UI ready: HTTP ${UI_STATUS}"
 
 echo "Microservice: http://${HOST_IP}:${MS_PORT}"
 echo "Web UI:       http://${HOST_IP}:${UI_PORT}"
@@ -321,12 +353,7 @@ echo "Web UI:       http://${HOST_IP}:${UI_PORT}"
 
 **Both containers running** — see `docker compose ps` output from Step 5. Both services should show "Up" status; microservice should show "(healthy)" in the STATUS column.
 
-**Microservice healthy**:
-```bash
-MS_PORT=$(grep AUTO_MAGIC_CALIB_MS_PORT $REPO_ROOT/compose/.env | cut -d= -f2)
-curl http://localhost:${MS_PORT}/v1/ready
-# Returns: {"code":0,"message":"VSS Auto Calibration Microservice is ready"}
-```
+**Microservice healthy** — Step 6 readiness polling returns `code:0` from `/v1/ready` and prints the service URL.
 
 **Web UI accessible**:
 - Open browser: `http://<HOST_IP>:<AUTO_MAGIC_CALIB_UI_PORT>`
@@ -361,6 +388,7 @@ curl http://localhost:${MS_PORT}/v1/ready
 | Key logs in but can't access an image | The Step 5 access check stops with "cannot access the required image" / a 401/403 on `docker manifest inspect`, before any pull | The key authenticates but lacks access to that image's namespace. Re-running login with the same key won't help — ask the user for an NGC key with access to the required namespace, re-run Step 1, then retry Step 5. |
 | VGGT download permission error | "PermissionError: [Errno 13] Permission denied: 'models/vggt/.cache'" | Download VGGT BEFORE setting `chown 1000:1000` on models. Fix: `sudo chown -R $(id -u):$(id -g) models` then re-download |
 | Port already in use | "address already in use" | Find available port in 8000-8009 (MS) or 5000-5009 (UI); update `.env` |
+| Microservice readiness timeout | Step 6 reports that `/v1/ready` did not return `code:0` within 120 seconds | Run `cd $REPO_ROOT/compose && docker compose ps`, then inspect logs with `docker compose logs auto-magic-calib-ms` |
 | Permission denied (projects) | "Permission denied: 'projects/...'" in MS logs | Run: `sudo chown 1000:1000 -R projects` |
 | Permission denied (models) | "Permission denied: 'models/...'" in MS logs | Run: `sudo chown 1000:1000 -R models` |
 | UI can't reach backend | Browser shows connection error | Verify `HOST_IP` in `.env` is the machine's network IP, not `localhost` |
@@ -404,3 +432,5 @@ docker compose down -v
 ## Related Skills
 - `skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
 - `skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
+
+<!-- signing marker -->
