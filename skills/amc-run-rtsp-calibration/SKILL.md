@@ -112,19 +112,24 @@ fi
 
 If VIOS is not reachable, ask the user to deploy VIOS and provide the base URL. Do not start RTSP capture until `${VIOS_BASE_URL}/vst/api/v1/sensor/list` returns 200.
 
-If VIOS is reachable but the AMC microservice is missing `VIOS_BASE_URL`, set it and relaunch:
+If VIOS is reachable but the AMC microservice is missing `VIOS_BASE_URL`, do not edit checked-in compose files. Export the variable and relaunch the microservice with a temporary compose override:
 
 ```bash
 cd "$REPO_ROOT/compose"
+export VIOS_BASE_URL="http://<VIOS_HOST>:30888"
+OVERRIDE_FILE="${TMPDIR:-/tmp}/amc-vios.override.yml"
+cat > "$OVERRIDE_FILE" <<'YAML'
+services:
+  auto-magic-calib-ms:
+    environment:
+      - VIOS_BASE_URL=${VIOS_BASE_URL}
+YAML
 
-# Add or update VIOS_BASE_URL in compose/.env.
-grep -q '^VIOS_BASE_URL=' .env \
-  && sed -i 's|^VIOS_BASE_URL=.*|VIOS_BASE_URL=http://<VIOS_HOST>:30888|' .env \
-  || echo 'VIOS_BASE_URL=http://<VIOS_HOST>:30888' >> .env
-
-docker compose up -d
+docker compose -f compose.yml -f "$OVERRIDE_FILE" up -d auto-magic-calib-ms
 docker exec auto-magic-calib-ms-1 printenv VIOS_BASE_URL
 ```
+
+A host-shell export alone is not enough after the container is already running; the microservice process must be restarted with `VIOS_BASE_URL` in its environment.
 
 ### Step 1 - Create Project
 
@@ -326,7 +331,7 @@ projects/project_<project_id>/
 | Issue | Fix |
 |---|---|
 | VIOS `/vst/api/v1/sensor/list` returns connection refused | VIOS is not running or not reachable from this host. Ask the user to deploy VIOS or provide the reachable base URL. |
-| Capture endpoint returns 503 or "VIOS not configured" | Set `VIOS_BASE_URL` in the AMC microservice environment and relaunch `docker compose up -d`. |
+| Capture endpoint returns 503 or "VIOS not configured" | Export `VIOS_BASE_URL`, relaunch the microservice with the temporary compose override from Step 0, then retry capture. |
 | Session stuck in `STARTING` | VIOS accepted the request but sensors may not be online. Check `${VIOS_BASE_URL}/vst/api/v1/sensor/list` and wait 20-30 seconds after sensor restarts. |
 | Session stuck in `RECORDING` past `duration_seconds` | Call `POST /v1/rtsp/capture/<project_id>/<session_id>/stop`, then ingest the partial clip if available. |
 | Ingest fails with "No clip available" | The recording window may not overlap the VIOS timeline. Wait for sensors to become online, then start a new capture. |

@@ -240,7 +240,7 @@ cat .env
 
 Optional: set `VGGT_MODEL_PATH` only if the VGGT model is mounted at a non-default container path; default is `/tmp/vggt_model/vggt_1B_commercial.pt` inside the MS container.
 
-Optional for RTSP calibration: if users will calibrate from live RTSP streams, set `VIOS_BASE_URL=http://<VIOS_HOST>:30888` in `compose/.env` before launching. The AMC microservice must be able to reach this URL at runtime. Use `skills/amc-run-rtsp-calibration/SKILL.md` after launch for VIOS health checks and RTSP capture.
+Optional for RTSP calibration: use `skills/amc-run-rtsp-calibration/SKILL.md` after launch. That skill verifies VIOS reachability and, when needed, relaunches the microservice with a temporary compose override that exports `VIOS_BASE_URL` without changing checked-in compose files.
 
 ### Step 4: Set Directory Permissions
 
