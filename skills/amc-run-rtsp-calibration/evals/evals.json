@@ -1,0 +1,86 @@
+[
+  {
+    "id": "amc-run-rtsp-calibration-001",
+    "question": "Calibrate from RTSP streams rtsp://HOST:31554/cam_00, rtsp://HOST:31555/cam_01, and rtsp://HOST:31556/cam_02. Record 180 seconds. The AMC microservice is at http://HOST:8000, VIOS is at http://HOST:30888, and settings.json, alignment_data.json, and layout.png are in /data/calib/.",
+    "expected_skill": "amc-run-rtsp-calibration",
+    "expected_script": "skills/amc-run-rtsp-calibration/scripts/run_rtsp_calibration.py",
+    "ground_truth": "The agent grounds itself in amc-run-rtsp-calibration, verifies AMC and VIOS health, creates a project, calls POST /v1/rtsp/capture/<project_id> with the three streams and duration_seconds=180, polls capture until COMPLETED, ingests the session, uploads settings, alignment, and layout, verifies READY, confirms the plan, calibrates, polls get_project_info until COMPLETED, and reports results without fabricating metrics if services are unreachable.",
+    "expected_behavior": [
+      "The agent identifies amc-run-rtsp-calibration as the skill and grounds its plan in that SKILL.md",
+      "The agent verifies VIOS with /vst/api/v1/sensor/list before capture",
+      "The agent calls /v1/rtsp/capture/<project_id> before ingesting clips",
+      "The agent calls /v1/rtsp/capture/<project_id>/<session_id>/ingest after capture completes",
+      "The agent polls /v1/get_project_info for the COMPLETED terminal state",
+      "The agent does not print RTSP credentials, VIOS bearer tokens, NGC keys, or HuggingFace tokens"
+    ]
+  },
+  {
+    "id": "amc-run-rtsp-calibration-002",
+    "question": "Calibrate these live cameras: rtsp://HOST:31554/cam_00 and rtsp://HOST:31555/cam_01. Record 120 seconds. AMC is http://HOST:8000 and VIOS is running, but I do not have alignment_data.json or layout.png.",
+    "expected_skill": "amc-run-rtsp-calibration",
+    "expected_script": "skills/amc-run-rtsp-calibration/scripts/run_rtsp_calibration.py",
+    "ground_truth": "The agent runs the RTSP capture and ingest sequence, then directs the user to open the AMC UI for the new project and complete Step 4 Alignment. It waits for confirmation and verifies projects/project_<id>/manual_adjustment/ contains alignment_data.json and layout.png before verify_project and calibrate. It does not ask the user to re-upload videos because RTSP clips are already ingested.",
+    "expected_behavior": [
+      "The agent instructs the user to complete UI Step 4 Alignment when alignment files are missing",
+      "The agent verifies manual alignment output on disk before calibrating",
+      "The agent does not fabricate alignment_data.json or layout.png",
+      "The agent does not re-upload videos during the RTSP UI fallback",
+      "The agent does not print credentials"
+    ]
+  },
+  {
+    "id": "amc-run-rtsp-calibration-003",
+    "question": "Calibrate rtsp://HOST:31554/cam_00. AMC is up, but VIOS is not reachable.",
+    "expected_skill": "amc-run-rtsp-calibration",
+    "expected_script": null,
+    "ground_truth": "The agent probes VIOS at /vst/api/v1/sensor/list, detects it is unreachable, asks the user to deploy VIOS or provide a reachable VIOS_BASE_URL, and refuses to call /v1/rtsp/capture until VIOS health is confirmed.",
+    "expected_behavior": [
+      "The agent reports that VIOS is unreachable",
+      "The agent asks for a reachable VIOS_BASE_URL or VIOS deployment",
+      "The agent does not attempt RTSP capture while VIOS is down",
+      "The agent does not fabricate a capture session or calibration result",
+      "The agent does not print credentials"
+    ]
+  },
+  {
+    "id": "amc-run-rtsp-calibration-004",
+    "question": "Calibrate rtsp://HOST:31554/cam_00 and rtsp://HOST:31555/cam_01 for 120 seconds. I have /data/calib/settings.json with detector_type set to transformer; alignment_data.json and layout.png are in the same directory.",
+    "expected_skill": "amc-run-rtsp-calibration",
+    "expected_script": "skills/amc-run-rtsp-calibration/scripts/run_rtsp_calibration.py",
+    "ground_truth": "The agent uses the settings file as the anchor, scans /data/calib for alignment_data.json and layout.png, POSTs settings.json to /v1/config/<project_id>, parses detector_type=transformer and sends transformer to /v1/calibrate/<project_id>, uploads alignment and layout, then verifies and calibrates.",
+    "expected_behavior": [
+      "The agent uses the settings file directory as the alignment/layout scan anchor",
+      "The agent calls /v1/config/<project_id> with the settings JSON",
+      "The agent honors the transformer detector override from settings.json",
+      "The agent uploads alignment and layout before verify_project",
+      "The agent does not print credentials"
+    ]
+  },
+  {
+    "id": "amc-run-rtsp-calibration-005",
+    "question": "I tried RTSP calibration and the capture endpoint returned 503 saying VIOS is not configured.",
+    "expected_skill": "amc-run-rtsp-calibration",
+    "expected_script": null,
+    "ground_truth": "The agent recognizes that the AMC microservice is missing VIOS_BASE_URL, tells the user to add VIOS_BASE_URL to the AMC compose environment or compose/.env, relaunch with docker compose up -d, and verify docker exec auto-magic-calib-ms-1 printenv VIOS_BASE_URL before retrying capture.",
+    "expected_behavior": [
+      "The agent identifies VIOS_BASE_URL as the missing runtime configuration",
+      "The agent instructs the user to relaunch the AMC microservice after setting VIOS_BASE_URL",
+      "The agent does not retry capture until the configuration is fixed",
+      "The agent does not suggest hardcoding a bearer token as the fix",
+      "The agent does not print credentials"
+    ]
+  },
+  {
+    "id": "amc-run-rtsp-calibration-neg-001",
+    "question": "I have local MP4 files at /data/videos/cam_00.mp4 and /data/videos/cam_01.mp4. Calibrate them.",
+    "expected_skill": null,
+    "expected_script": null,
+    "ground_truth": "amc-run-rtsp-calibration is for live RTSP streams only. For pre-recorded local MP4 files, the correct skill is amc-run-video-calibration. The agent identifies this and does not invoke the RTSP capture flow.",
+    "expected_behavior": [
+      "The agent does NOT invoke amc-run-rtsp-calibration for local MP4 files",
+      "The agent routes to or names amc-run-video-calibration as the correct skill",
+      "The agent does not call RTSP capture endpoints",
+      "The agent does not print credentials"
+    ]
+  }
+]
