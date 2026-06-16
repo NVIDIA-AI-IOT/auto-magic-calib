@@ -1,5 +1,5 @@
 ## Description: <br>
-Launch AutoMagicCalib microservice and web UI from NGC release images via Docker Compose. <br>
+Calibrate a new dataset from live RTSP camera streams via the AutoMagicCalib REST API. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
 ## Use Case: <br>
-Developers and engineers deploying the AutoMagicCalib camera calibration stack for production or development environments using Docker Compose with NGC container images. <br>
+Developers and engineers use this skill to calibrate camera parameters from live RTSP streams using the AutoMagicCalib microservice, enabling automated multi-camera calibration from real-time video feeds. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -19,25 +19,24 @@ Risk: Review before execution as proposals could introduce incorrect or misleadi
 Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
-- [AutoMagicCalib GitHub Repository](https://github.com/NVIDIA-AI-IOT/auto-magic-calib) <br>
-- [VGGT-1B-Commercial Model](https://huggingface.co/facebook/VGGT-1B-Commercial) <br>
-- [Docker Post-Install (rootless setup)](https://docs.docker.com/engine/install/linux-postinstall/) <br>
+- [run_rtsp_calibration.py](scripts/run_rtsp_calibration.py) <br>
+- [Agent Skills Specification](https://agentskills.io/specification) <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [Shell commands, Configuration instructions] <br>
+**Output Type(s):** [API Calls, Shell commands, Configuration instructions] <br>
 **Output Format:** [Markdown with inline bash code blocks] <br>
 **Output Parameters:** [1D] <br>
 **Other Properties Related to Output:** [None] <br>
 
 ## Evaluation Agents Used: <br>
-- `claude-code` <br>
-- `codex` <br>
+- claude-code <br>
+- codex <br>
 
 
 
 ## Evaluation Tasks: <br>
-Evaluated against 6 internal evaluation tasks (4 positive skill-activation, 2 negative). <br>
+Evaluated against 6 evaluation tasks (5 positive, 1 negative) in astra-sandbox environment using NVSkills-Eval internal profile. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
@@ -61,11 +60,11 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 6 | 100% (+0%) | 100% (+17%) |
-| Correctness | 6 | 80% (+23%) | 84% (+15%) |
-| Discoverability | 6 | 62% (+4%) | 85% (+20%) |
-| Effectiveness | 6 | 76% (+30%) | 66% (+15%) |
-| Efficiency | 6 | 63% (+4%) | 78% (+21%) |
+| Security | 6 | 100% (+0%) | 83% (-17%) |
+| Correctness | 6 | 66% (+40%) | 89% (+54%) |
+| Discoverability | 6 | 61% (+19%) | 80% (+28%) |
+| Effectiveness | 6 | 61% (+42%) | 73% (+49%) |
+| Efficiency | 6 | 61% (+18%) | 67% (+19%) |
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>

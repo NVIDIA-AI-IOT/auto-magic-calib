@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
 ## Use Case: <br>
-Developers and engineers use this skill to verify that a freshly-launched AutoMagicCalib microservice works end-to-end by running calibration on the bundled synthetic sample dataset with ground truth. <br>
+Developers and engineers validating a running AutoMagicCalib (AMC) microservice installation by executing end-to-end calibration on the bundled synthetic sample dataset. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -23,7 +23,7 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [Shell commands, API Calls, Evaluation metrics] <br>
+**Output Type(s):** [Shell commands, API Calls, Calibration metrics] <br>
 **Output Format:** [Markdown with inline bash code blocks] <br>
 **Output Parameters:** [1D] <br>
 **Other Properties Related to Output:** [None] <br>
@@ -35,7 +35,7 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-Evaluated against 5 evaluation tasks (3 positive activation, 2 negative activation) in an astra-sandbox environment. <br>
+Evaluated against 5 internal evaluation tasks (3 positive skill-activation, 2 negative) in the astra-sandbox environment using NVSkills-Eval. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
@@ -59,11 +59,11 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 5 | 100% (+0%) | 80% (-20%) |
-| Correctness | 5 | 87% (+34%) | 95% (+41%) |
-| Discoverability | 5 | 83% (+7%) | 92% (+16%) |
-| Effectiveness | 5 | 81% (+43%) | 89% (+47%) |
-| Efficiency | 5 | 72% (+3%) | 86% (+15%) |
+| Security | 5 | 100% (+0%) | 100% (+0%) |
+| Correctness | 5 | 92% (+37%) | 92% (+38%) |
+| Discoverability | 5 | 94% (+18%) | 76% (+0%) |
+| Effectiveness | 5 | 85% (+45%) | 89% (+45%) |
+| Efficiency | 5 | 84% (+15%) | 64% (-6%) |
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>

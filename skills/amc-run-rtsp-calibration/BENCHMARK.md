@@ -1,12 +1,12 @@
 # Evaluation Report
 
-Evaluation of the `amc-setup-calibration-stack` skill before publication through NVSkills-Eval.
+Evaluation of the `amc-run-rtsp-calibration` skill before publication through NVSkills-Eval.
 
 This benchmark summarizes 3-Tier Evaluation from NVSkills-Eval results for the skill. The goal is to document whether the skill is safe, discoverable, effective, and useful for agents before it is published for broader workflow use.
 
 ## Evaluation Summary
 
-- Skill: `amc-setup-calibration-stack`
+- Skill: `amc-run-rtsp-calibration`
 - Evaluation date: 2026-06-16
 - NVSkills-Eval profile: `internal`
 - Environment: `astra-sandbox`
@@ -44,8 +44,8 @@ Underlying evaluation signals used in this run:
 
 The benchmark dataset contained 6 evaluation tasks:
 
-- Positive tasks: 4 tasks where the skill was expected to activate.
-- Negative tasks: 2 tasks where no skill was expected.
+- Positive tasks: 5 tasks where the skill was expected to activate.
+- Negative tasks: 1 tasks where no skill was expected.
 - Unlabeled tasks: 0 tasks where positive/negative intent could not be inferred.
 
 Task composition is derived from the evaluation dataset when possible. Entries with `expected_skill` set are treated as positive skill-activation cases, while entries with `expected_skill: null` are treated as negative activation cases.
@@ -54,11 +54,11 @@ Task composition is derived from the evaluation dataset when possible. Entries w
 
 | Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 6 | 100% (+0%) | 100% (+17%) |
-| Correctness | 6 | 80% (+23%) | 84% (+15%) |
-| Discoverability | 6 | 62% (+4%) | 85% (+20%) |
-| Effectiveness | 6 | 76% (+30%) | 66% (+15%) |
-| Efficiency | 6 | 63% (+4%) | 78% (+21%) |
+| Security | 6 | 100% (+0%) | 83% (-17%) |
+| Correctness | 6 | 66% (+40%) | 89% (+54%) |
+| Discoverability | 6 | 61% (+19%) | 80% (+28%) |
+| Effectiveness | 6 | 61% (+42%) | 73% (+49%) |
+| Efficiency | 6 | 61% (+18%) | 67% (+19%) |
 
 Score values show skill-assisted performance. Values in parentheses show uplift versus the no-skill baseline when baseline data is available.
 
@@ -68,7 +68,7 @@ Tier 1 validation passed with observations. NVSkills-Eval ran 1 checks and found
 
 Top findings:
 
-- MEDIUM SCHEMA/body_recommended_section: Missing recommended section: '## Examples' (`team-skills/deepstream/amc-camera-calibration/amc-setup-calibration-stack/SKILL.md`)
+- MEDIUM SCHEMA/body_recommended_section: Missing recommended section: '## Examples' (`team-skills/deepstream/amc-camera-calibration/amc-run-rtsp-calibration/SKILL.md`)
 
 ## Tier 2: Deduplication Summary
 
