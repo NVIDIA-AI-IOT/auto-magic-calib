@@ -25,6 +25,8 @@ VIOS records fixed-duration clips from each stream, the AMC microservice ingests
 
 Do not use this skill for local MP4 files already on disk; route those requests to `skills/amc-run-video-calibration/SKILL.md`. Do not use it for the bundled sample dataset; route that to `skills/amc-run-sample-calibration/SKILL.md`.
 
+Never reuse files from the bundled sample dataset, extracted sample zip, `assets/`, or previous projects for RTSP calibration unless the user explicitly provides those paths for this RTSP scene. Similar camera names, stream counts, or `cam_00`/`cam_01` ordering are not evidence that sample alignment, layout, GT, or detector settings apply.
+
 ## Prerequisites
 
 - [ ] AMC microservice and UI running (follow `skills/amc-setup-calibration-stack/SKILL.md` if needed).
@@ -47,18 +49,27 @@ RTSP URLs may contain usernames, passwords, hostnames, or network topology. Do n
 3. Recording duration in seconds. Minimum is `60`; prefer `120`-`180` or more when the scene has sparse motion.
 4. Microservice URL, for example `http://<HOST_IP>:8000` or `http://<HOST_IP>:8000/v1`.
 5. Project name.
+6. Calibration asset source for this RTSP scene:
+   - a local directory to scan, such as `/data/my_rtsp_calib/`;
+   - explicit paths to settings, alignment, layout, and optional GT files; or
+   - confirmation that the user will upload/tune settings and alignment in the AMC UI.
+
+If the user does not provide a local asset source, stop and ask whether they want to provide a path or use UI upload. Give the UI link as `http://<HOST_IP>:<AUTO_MAGIC_CALIB_UI_PORT>`; the default UI port is `5000`.
 
 ### Auto-Detected or Asked
 
-There is no local videos directory to anchor file discovery. Ask for the calibration settings file first. If supplied, scan that same directory for alignment and layout files:
+RTSP clips are recorded by VIOS, so there is no local videos directory to anchor file discovery. Only scan a directory the user explicitly provided for this RTSP scene. If the user provides a settings file path, use that file's directory as the scan directory. If the user provides a calibration asset directory, scan only that directory. Otherwise ask this question before planning uploads or calibration:
+
+> Do you have a local calibration asset directory or settings file for these RTSP streams, or should you upload/tune settings and alignment in the AMC UI at `http://<HOST_IP>:<AUTO_MAGIC_CALIB_UI_PORT>`?
 
 | File | Candidate filenames | UI fallback |
 |---|---|---|
-| Calibration settings | User-provided path such as `settings.json`, `config.json`, or `calibration_config.json` | UI Step 3: Parameters |
-| Alignment JSON | `alignment_data.json` in the settings file directory, or explicit user path | UI Step 4: Alignment |
-| Layout PNG | `layout.png` in the settings file directory, or explicit user path | UI Step 4: Alignment |
+| Calibration settings | Explicit user path, or `settings.json`, `config.json`, or `calibration_config.json` in the user-provided asset directory | UI Step 3: Parameters |
+| Alignment JSON | Explicit user path, or `alignment_data.json` in the user-provided asset directory/settings directory | UI Step 4: Alignment |
+| Layout PNG | Explicit user path, or `layout.png` in the user-provided asset directory/settings directory | UI Step 4: Alignment |
+| Ground truth zip | Optional explicit user path, or `GT.zip`/`gt.zip` in the user-provided asset directory | Omit metrics |
 
-Posting the settings file replaces UI Step 3 and may pin `detector` or `detector_type`. If it pins `resnet` or `transformer`, pass that same detector to `/calibrate`.
+Posting the settings file replaces UI Step 3 and may pin `detector` or `detector_type`. If it pins `resnet` or `transformer`, pass that same detector to `/calibrate`. If no settings file pins a detector, ask the user which detector to use; do not silently default to `resnet`.
 
 ### Optional
 
@@ -203,7 +214,9 @@ Resolve local files using the anchor-file pattern above. Upload resolved files:
 | Ground truth zip | `POST /v1/upload_gt_file/<project_id>` | Optional |
 | Focal lengths | `POST /v1/upload_focal_length/<project_id>` | Optional repeated `focal_length` values |
 
-If settings are missing, direct the user to UI Step 3: Parameters, then ask which detector to use (`resnet` or `transformer`) before calibration. If alignment or layout is missing, direct the user to UI Step 4: Alignment for this project. For RTSP projects, videos are already ingested; do not re-upload videos in the UI fallback.
+Use only files from explicit user-provided paths or a user-provided calibration asset directory. Do not extract or scan sample data to find fallback settings, alignment, layout, or GT.
+
+If settings are missing, direct the user to UI Step 3: Parameters at `http://<HOST_IP>:<AUTO_MAGIC_CALIB_UI_PORT>`, then ask which detector to use (`resnet` or `transformer`) before calibration. If alignment or layout is missing, direct the user to UI Step 4: Alignment for this project. For RTSP projects, videos are already ingested; do not re-upload videos in the UI fallback.
 
 Before continuing after UI Step 4, verify:
 
@@ -230,8 +243,8 @@ Confirm the plan before calibrating. Summarize:
 
 - Stream count and recording duration.
 - Detector: `resnet` or `transformer`.
-- Settings source: uploaded settings file or UI/defaults.
-- Alignment/layout source: uploaded files or UI manual adjustment.
+- Settings source: explicit uploaded settings file, user-provided asset directory, or UI Step 3.
+- Alignment/layout source: explicit uploaded files, user-provided asset directory, or UI manual adjustment.
 - Optional GT and focal-length overrides.
 
 Start calibration:
@@ -240,7 +253,7 @@ Start calibration:
 POST /v1/calibrate/<project_id>
 Content-Type: application/json
 
-{"detector_type": "resnet"}
+{"detector_type": "<resnet-or-transformer>"}
 ```
 
 Poll:
@@ -280,7 +293,10 @@ export RTSP_URLS='rtsp://user:pass@cam0/stream,rtsp://user:pass@cam1/stream'
 export CAMERA_NAMES='cam_00,cam_01'
 export DURATION_SECONDS=180
 export VIOS_BASE_URL=http://<VIOS_HOST>:30888
-export CONFIG_FILE=/path/to/settings.json
+export CALIB_ASSET_DIR=/path/to/rtsp-calibration-assets
+# Or provide explicit CONFIG_FILE, ALIGNMENT_JSON, LAYOUT_PNG, and optional GT_ZIP.
+export DETECTOR_TYPE=transformer  # Required when settings do not set detector/detector_type.
+export AMC_UI_URL=http://<HOST_IP>:5000
 export RUN_VGGT=false
 
 python3 skills/amc-run-rtsp-calibration/scripts/run_rtsp_calibration.py
@@ -295,7 +311,7 @@ export STREAMS_JSON='[
 ]'
 ```
 
-Optional env vars are `ALIGNMENT_JSON`, `LAYOUT_PNG`, `GT_ZIP`, `FOCAL_LENGTHS`, `DETECTOR_TYPE`, `VIOS_TOKEN`, `SSL_VERIFY`, `RUN_VGGT`, `REPO_ROOT`, and `PROJECTS_DIR`.
+Optional env vars are `CALIB_ASSET_DIR`, `CONFIG_FILE`, `ALIGNMENT_JSON`, `LAYOUT_PNG`, `GT_ZIP`, `FOCAL_LENGTHS`, `DETECTOR_TYPE`, `AMC_UI_URL`, `VIOS_TOKEN`, `SSL_VERIFY`, `RUN_VGGT`, `REPO_ROOT`, and `PROJECTS_DIR`.
 
 ## Success Criteria
 

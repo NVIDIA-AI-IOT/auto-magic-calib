@@ -16,15 +16,16 @@
   },
   {
     "id": "amc-run-rtsp-calibration-002",
-    "question": "Calibrate these live cameras: rtsp://HOST:31554/cam_00 and rtsp://HOST:31555/cam_01. Record 120 seconds. AMC is http://HOST:8000 and VIOS is running, but I do not have alignment_data.json or layout.png.",
+    "question": "Calibrate four RTSP streams named cam_00, cam_01, cam_02, and cam_03 for 180 seconds. AMC is http://HOST:8000 and VIOS is http://HOST:30888. I did not give any local settings, alignment, layout, GT, or calibration asset directory.",
     "expected_skill": "amc-run-rtsp-calibration",
-    "expected_script": "skills/amc-run-rtsp-calibration/scripts/run_rtsp_calibration.py",
-    "ground_truth": "The agent runs the RTSP capture and ingest sequence, then directs the user to open the AMC UI for the new project and complete Step 4 Alignment. It waits for confirmation and verifies projects/project_<id>/manual_adjustment/ contains alignment_data.json and layout.png before verify_project and calibrate. It does not ask the user to re-upload videos because RTSP clips are already ingested.",
+    "expected_script": null,
+    "ground_truth": "Before planning uploads, verification, or calibration, the agent recognizes that four cam_XX streams are not enough to infer the bundled sample dataset. It asks the user to choose either a local calibration asset directory/settings path for these RTSP streams or upload/tune settings and alignment in the AMC UI. It provides the UI link, for example http://HOST:5000, and does not use bundled sample dataset assets, an extracted sample zip, previous-project alignment/layout, GT.zip, or a default resnet detector unless the user explicitly chooses them.",
     "expected_behavior": [
-      "The agent instructs the user to complete UI Step 4 Alignment when alignment files are missing",
-      "The agent verifies manual alignment output on disk before calibrating",
-      "The agent does not fabricate alignment_data.json or layout.png",
-      "The agent does not re-upload videos during the RTSP UI fallback",
+      "The agent does not infer sample dataset assets from cam_00 through cam_03 names or stream count",
+      "The agent asks for a local calibration asset directory/settings path or explicit UI upload choice before planning uploads/calibration",
+      "The agent provides the AMC UI link for upload/tuning fallback",
+      "The agent does not use bundled sample alignment, layout, GT, or detector settings",
+      "The agent does not silently default detector_type to resnet when no settings file pins it",
       "The agent does not print credentials"
     ]
   },
@@ -44,12 +45,12 @@
   },
   {
     "id": "amc-run-rtsp-calibration-004",
-    "question": "Calibrate rtsp://HOST:31554/cam_00 and rtsp://HOST:31555/cam_01 for 120 seconds. I have /data/calib/settings.json with detector_type set to transformer; alignment_data.json and layout.png are in the same directory.",
+    "question": "Calibrate rtsp://HOST:31554/cam_00 and rtsp://HOST:31555/cam_01 for 120 seconds. Use /data/calib as the local calibration asset directory; it contains settings.json with detector_type set to transformer, plus alignment_data.json and layout.png.",
     "expected_skill": "amc-run-rtsp-calibration",
     "expected_script": "skills/amc-run-rtsp-calibration/scripts/run_rtsp_calibration.py",
-    "ground_truth": "The agent uses the settings file as the anchor, scans /data/calib for alignment_data.json and layout.png, POSTs settings.json to /v1/config/<project_id>, parses detector_type=transformer and sends transformer to /v1/calibrate/<project_id>, uploads alignment and layout, then verifies and calibrates.",
+    "ground_truth": "The agent treats /data/calib as the explicit user-provided asset directory, scans only that directory for settings.json, alignment_data.json, and layout.png, POSTs settings.json to /v1/config/<project_id>, honors detector_type=transformer, uploads alignment and layout, then verifies and calibrates.",
     "expected_behavior": [
-      "The agent uses the settings file directory as the alignment/layout scan anchor",
+      "The agent uses the explicit /data/calib asset directory as the only alignment/layout scan anchor",
       "The agent calls /v1/config/<project_id> with the settings JSON",
       "The agent honors the transformer detector override from settings.json",
       "The agent uploads alignment and layout before verify_project",
@@ -61,10 +62,11 @@
     "question": "I tried RTSP calibration and the capture endpoint returned 503 saying VIOS is not configured.",
     "expected_skill": "amc-run-rtsp-calibration",
     "expected_script": null,
-    "ground_truth": "The agent recognizes that the AMC microservice is missing VIOS_BASE_URL, tells the user to add VIOS_BASE_URL to the AMC compose environment or compose/.env, relaunch with docker compose up -d, and verify docker exec auto-magic-calib-ms-1 printenv VIOS_BASE_URL before retrying capture.",
+    "ground_truth": "The agent recognizes that the AMC microservice is missing VIOS_BASE_URL, tells the user to export VIOS_BASE_URL and relaunch the microservice with a temporary compose override instead of editing checked-in compose files, then verifies docker exec auto-magic-calib-ms-1 printenv VIOS_BASE_URL before retrying capture.",
     "expected_behavior": [
       "The agent identifies VIOS_BASE_URL as the missing runtime configuration",
-      "The agent instructs the user to relaunch the AMC microservice after setting VIOS_BASE_URL",
+      "The agent instructs the user to relaunch the AMC microservice with a temporary compose override after setting VIOS_BASE_URL",
+      "The agent does not ask the user to add VIOS_BASE_URL back to checked-in compose files",
       "The agent does not retry capture until the configuration is fixed",
       "The agent does not suggest hardcoding a bearer token as the fix",
       "The agent does not print credentials"

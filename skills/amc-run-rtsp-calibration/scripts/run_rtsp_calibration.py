@@ -132,6 +132,44 @@ def _check_vios_ready(base_url):
     response.raise_for_status()
 
 
+def _default_ui_url(base_url):
+    explicit = os.environ.get("AMC_UI_URL") or os.environ.get("UI_URL")
+    if explicit:
+        return explicit.rstrip("/")
+    try:
+        parts = urlsplit(base_url.rstrip("/"))
+        host = parts.hostname or "<HOST_IP>"
+        return f"{parts.scheme or 'http'}://{host}:5000"
+    except Exception:
+        return "http://<HOST_IP>:5000"
+
+
+def _detector_from_config(path):
+    if not path or not path.exists():
+        return None
+    try:
+        cfg = json.loads(path.read_text())
+    except Exception:
+        return None
+    det = cfg.get("detector") or cfg.get("detector_type")
+    return det if det in ("resnet", "transformer") else None
+
+
+def _require_detector(current):
+    if current in ("resnet", "transformer"):
+        return current
+    if not IS_INTERACTIVE:
+        raise RuntimeError(
+            "Detector type is required before calibration. Set DETECTOR_TYPE=resnet or "
+            "DETECTOR_TYPE=transformer, or provide CONFIG_FILE with detector/detector_type."
+        )
+    while True:
+        answer = input("    Detector type for calibration [resnet/transformer]: ").strip().lower()
+        if answer in ("resnet", "transformer"):
+            return answer
+        print("    Enter 'resnet' or 'transformer'.")
+
+
 # Required env vars: RTSP_URLS or STREAMS_JSON. BASE_URL and PROJECT_NAME have
 # defaults for easy editing but should normally be set by the caller.
 BASE_URL = _normalize_base_url(os.environ.get("BASE_URL", "http://<HOST_IP>:<MS_PORT>/v1"))
@@ -142,11 +180,12 @@ if DURATION_SECONDS < 60:
     raise SystemExit("DURATION_SECONDS must be at least 60.")
 
 CONFIG_FILE = _env_path("CONFIG_FILE")
+CALIB_ASSET_DIR = _env_path("CALIB_ASSET_DIR")
 ALIGNMENT_JSON = _env_path("ALIGNMENT_JSON")
 LAYOUT_PNG = _env_path("LAYOUT_PNG")
 GT_ZIP = _env_path("GT_ZIP")
 FOCAL_LENGTHS = _env_float_list("FOCAL_LENGTHS")
-DETECTOR_TYPE = os.environ.get("DETECTOR_TYPE", "resnet")
+DETECTOR_TYPE = os.environ.get("DETECTOR_TYPE")
 RUN_VGGT = _env_bool("RUN_VGGT", False)
 VIOS_TOKEN = os.environ.get("VIOS_TOKEN") or None
 SSL_VERIFY = _env_bool("SSL_VERIFY", False)
@@ -156,19 +195,51 @@ REQUIRE_VIOS_HEALTH = _env_bool("REQUIRE_VIOS_HEALTH", True)
 REPO_ROOT = Path(os.environ.get("REPO_ROOT", Path.cwd()))
 PROJECTS_DIR = Path(os.environ.get("PROJECTS_DIR", REPO_ROOT / "projects"))
 IS_INTERACTIVE = sys.stdin.isatty()
+AMC_UI_URL = _default_ui_url(BASE_URL)
 
 for label, path in (
     ("CONFIG_FILE", CONFIG_FILE),
+    ("CALIB_ASSET_DIR", CALIB_ASSET_DIR),
     ("ALIGNMENT_JSON", ALIGNMENT_JSON),
     ("LAYOUT_PNG", LAYOUT_PNG),
     ("GT_ZIP", GT_ZIP),
 ):
     if path and not path.exists():
         raise SystemExit(f"{label} set but path not found: {path}")
+if CALIB_ASSET_DIR and not CALIB_ASSET_DIR.is_dir():
+    raise SystemExit(f"CALIB_ASSET_DIR must be a directory: {CALIB_ASSET_DIR}")
 
-_scan_dir = CONFIG_FILE.parent if CONFIG_FILE else None
+CONFIG_FILE = _resolve_local(
+    CONFIG_FILE,
+    ["settings.json", "config.json", "calibration_config.json"],
+    CALIB_ASSET_DIR,
+    "calibration settings",
+)
+_scan_dir = CALIB_ASSET_DIR or (CONFIG_FILE.parent if CONFIG_FILE else None)
 ALIGNMENT_JSON = _resolve_local(ALIGNMENT_JSON, ["alignment_data.json"], _scan_dir, "alignment")
 LAYOUT_PNG = _resolve_local(LAYOUT_PNG, ["layout.png"], _scan_dir, "layout")
+GT_ZIP = _resolve_local(GT_ZIP, ["GT.zip", "gt.zip"], _scan_dir, "ground truth")
+
+config_detector = _detector_from_config(CONFIG_FILE)
+if config_detector:
+    DETECTOR_TYPE = config_detector
+
+local_asset_source = any([CONFIG_FILE, ALIGNMENT_JSON, LAYOUT_PNG])
+if not local_asset_source:
+    print(
+        "[0] No local calibration asset source was provided for these RTSP streams.\n"
+        "    Provide CALIB_ASSET_DIR or explicit CONFIG_FILE/ALIGNMENT_JSON/LAYOUT_PNG,\n"
+        f"    or use AMC UI upload/tuning at {AMC_UI_URL}.\n"
+        "    Do not reuse sample dataset assets unless they are explicitly intended for this RTSP scene."
+    )
+    if not IS_INTERACTIVE:
+        raise SystemExit(
+            "No local calibration asset source was provided. Run interactively for UI upload, "
+            "or set CALIB_ASSET_DIR / CONFIG_FILE / ALIGNMENT_JSON / LAYOUT_PNG."
+        )
+    answer = input("    Continue and complete settings/alignment in the AMC UI after capture? [y/N]: ").strip().lower()
+    if answer not in ("y", "yes"):
+        raise SystemExit("Stopped before capture; provide a local asset path or use the AMC UI.")
 
 s = requests.Session()
 
@@ -200,10 +271,12 @@ print("\n[1] RTSP capture plan:")
 print(f"    Project:              {PROJECT_NAME}")
 print(f"    Stream count:         {len(STREAMS)}")
 print(f"    Duration seconds:     {DURATION_SECONDS}")
+print(f"    AMC UI:               {AMC_UI_URL}")
+print(f"    Calibration assets:   {CALIB_ASSET_DIR if CALIB_ASSET_DIR else 'explicit files or UI'}")
 print(f"    Calibration settings: {CONFIG_FILE if CONFIG_FILE else 'UI Step 3 settings/defaults'}")
 print(f"    Alignment JSON:       {ALIGNMENT_JSON if ALIGNMENT_JSON else 'UI Step 4/manual_adjustment'}")
 print(f"    Layout PNG:           {LAYOUT_PNG if LAYOUT_PNG else 'UI Step 4/manual_adjustment'}")
-print(f"    Detector:             {DETECTOR_TYPE}")
+print(f"    Detector:             {DETECTOR_TYPE if DETECTOR_TYPE else 'ask before calibration'}")
 for idx, stream in enumerate(STREAMS):
     sensor_state = "provided" if stream.get("sensor_id") else "auto"
     print(f"    Stream {idx}:           {stream['camera_name']} {sensor_state} {_redact_rtsp_url(stream['rtsp_url'])}")
@@ -270,14 +343,10 @@ if CONFIG_FILE and CONFIG_FILE.exists():
     )
     r.raise_for_status()
     print(f"[5] Applied calibration config from {CONFIG_FILE.name} (replaces UI Step 3)")
-    try:
-        cfg = json.loads(CONFIG_FILE.read_text())
-        det = cfg.get("detector") or cfg.get("detector_type")
-        if det in ("resnet", "transformer"):
-            DETECTOR_TYPE = det
-            print(f"    Detector overridden from config: {DETECTOR_TYPE}")
-    except Exception:
-        pass
+    det = _detector_from_config(CONFIG_FILE)
+    if det:
+        DETECTOR_TYPE = det
+        print(f"    Detector overridden from config: {DETECTOR_TYPE}")
 
 if ALIGNMENT_JSON and ALIGNMENT_JSON.exists():
     with open(ALIGNMENT_JSON, "rb") as f:
@@ -321,6 +390,7 @@ if not ALIGNMENT_JSON or not LAYOUT_PNG:
     ui_tasks.append("Step 4 (Alignment): upload layout, mark correspondence points, then Save. Do not re-upload videos.")
 if ui_tasks:
     print(f"\n[5] UI action required for project {project_id}:")
+    print(f"    Open AMC UI: {AMC_UI_URL}")
     for task in ui_tasks:
         print(f"    - {task}")
     if not IS_INTERACTIVE:
@@ -337,6 +407,8 @@ if ui_tasks:
         print(f"    Alignment files verified at {manual_dir}")
 
 # Step 5 -- Verify, confirm, calibrate, poll, and fetch results.
+DETECTOR_TYPE = _require_detector(DETECTOR_TYPE)
+
 r = s.post(f"{BASE_URL}/verify_project/{project_id}", timeout=60)
 r.raise_for_status()
 verify_payload = r.json()
@@ -348,6 +420,7 @@ print("\n[7] Calibration plan:")
 print(f"    Detector:             {DETECTOR_TYPE}")
 print(f"    Stream count:         {len(STREAMS)}")
 print(f"    Duration seconds:     {DURATION_SECONDS}")
+print(f"    AMC UI:               {AMC_UI_URL}")
 print(f"    Calibration settings: {CONFIG_FILE if CONFIG_FILE else 'UI Step 3 settings/defaults'}")
 print(f"    Alignment JSON:       {ALIGNMENT_JSON if ALIGNMENT_JSON else 'UI Step 4/manual_adjustment'}")
 print(f"    Layout PNG:           {LAYOUT_PNG if LAYOUT_PNG else 'UI Step 4/manual_adjustment'}")
