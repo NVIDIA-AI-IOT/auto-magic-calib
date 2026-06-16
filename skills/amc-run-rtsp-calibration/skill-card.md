@@ -1,5 +1,5 @@
 ## Description: <br>
-Calibrate a new dataset from live RTSP camera streams via the AutoMagicCalib REST API. <br>
+Calibrate a new dataset from live RTSP camera streams via the AutoMagicCalib REST API. Use when the user provides RTSP URLs or asks to calibrate live cameras; VIOS records clips, AMC ingests them, then runs calibration. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
@@ -7,9 +7,9 @@ This skill is ready for commercial/non-commercial use. <br>
 NVIDIA <br>
 
 ### License/Terms of Use: <br>
-Apache-2.0 <br>
+Apache 2.0 <br>
 ## Use Case: <br>
-Developers and engineers use this skill to calibrate camera parameters from live RTSP streams using the AutoMagicCalib microservice, enabling automated multi-camera calibration from real-time video feeds. <br>
+Developers and engineers use this skill to calibrate camera systems from live RTSP streams using the AutoMagicCalib microservice, automating VIOS capture, video ingestion, and multi-camera calibration workflows. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -30,13 +30,13 @@ Mitigation: Review and scan skill before deployment. <br>
 **Other Properties Related to Output:** [None] <br>
 
 ## Evaluation Agents Used: <br>
-- claude-code <br>
-- codex <br>
+- `claude-code` <br>
+- `codex` <br>
 
 
 
 ## Evaluation Tasks: <br>
-Evaluated against 6 evaluation tasks (5 positive, 1 negative) in astra-sandbox environment using NVSkills-Eval internal profile. <br>
+Evaluated against 6 internal evaluation tasks (5 positive activation, 1 negative activation) under NVSkills-Eval internal profile. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
@@ -60,11 +60,11 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 6 | 100% (+0%) | 83% (-17%) |
-| Correctness | 6 | 66% (+40%) | 89% (+54%) |
-| Discoverability | 6 | 61% (+19%) | 80% (+28%) |
-| Effectiveness | 6 | 61% (+42%) | 73% (+49%) |
-| Efficiency | 6 | 61% (+18%) | 67% (+19%) |
+| Security | 6 | 100% (+0%) | 92% (-8%) |
+| Correctness | 6 | 75% (+38%) | 79% (+38%) |
+| Discoverability | 6 | 75% (+24%) | 87% (+33%) |
+| Effectiveness | 6 | 65% (+39%) | 64% (+34%) |
+| Efficiency | 6 | 74% (+27%) | 79% (+29%) |
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>

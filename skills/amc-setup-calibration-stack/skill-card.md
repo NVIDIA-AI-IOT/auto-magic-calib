@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
 ## Use Case: <br>
-Developers and engineers deploying the AutoMagicCalib camera calibration stack for production or development environments using Docker Compose with NGC container images. <br>
+Developers and engineers deploying the AutoMagicCalib camera calibration stack using NVIDIA NGC container images via Docker Compose for production or development environments. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -61,11 +61,16 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 6 | 100% (+0%) | 100% (+17%) |
-| Correctness | 6 | 80% (+23%) | 84% (+15%) |
-| Discoverability | 6 | 62% (+4%) | 85% (+20%) |
-| Effectiveness | 6 | 76% (+30%) | 66% (+15%) |
-| Efficiency | 6 | 63% (+4%) | 78% (+21%) |
+| Security | 6 | 100% (+0%) | 83% (-17%) |
+| Correctness | 6 | 71% (+14%) | 81% (+18%) |
+| Discoverability | 6 | 62% (-3%) | 81% (+13%) |
+| Effectiveness | 6 | 69% (+26%) | 69% (+25%) |
+| Efficiency | 6 | 63% (+2%) | 77% (+14%) |
+
+## Testing Completed: <br>
+**[x] Agent Red-Teaming** <br>
+**[ ] Network Security** <br>
+**[ ] Product Security** <br>
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>
