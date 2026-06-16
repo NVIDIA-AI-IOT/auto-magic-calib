@@ -302,9 +302,11 @@ docker compose ps
 **Expected output**:
 ```
 NAME                    IMAGE                                                              STATUS
-auto-magic-calib-ms-1   nvcr.io/nvidia/auto-magic-calib:2.0.0           Up (healthy)
-auto-magic-calib-ui-1   nvcr.io/nvidia/auto-magic-calib-ui:2.0.0        Up
+auto-magic-calib-ms-1   nvcr.io/nvidia/auto-magic-calib:<tag-from-compose>      Up (healthy)
+auto-magic-calib-ui-1   nvcr.io/nvidia/auto-magic-calib-ui:<tag-from-compose>   Up
 ```
+
+The exact image tags change by release. Read the active tags from `compose/ms/compose.yml` and `compose/ui/compose.yml` instead of hardcoding a version in the skill.
 
 ### Step 6: Verify Services Are Running
 
