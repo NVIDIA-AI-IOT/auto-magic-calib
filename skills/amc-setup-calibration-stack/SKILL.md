@@ -240,6 +240,8 @@ cat .env
 
 Optional: set `VGGT_MODEL_PATH` only if the VGGT model is mounted at a non-default container path; default is `/tmp/vggt_model/vggt_1B_commercial.pt` inside the MS container.
 
+Optional for RTSP calibration: if users will calibrate from live RTSP streams, set `VIOS_BASE_URL=http://<VIOS_HOST>:30888` in `compose/.env` before launching. The AMC microservice must be able to reach this URL at runtime. Use `skills/amc-run-rtsp-calibration/SKILL.md` after launch for VIOS health checks and RTSP capture.
+
 ### Step 4: Set Directory Permissions
 
 The containers run as UID/GID 1000. The `projects` and `models` directories must be owned by this UID for containers to read/write properly:
@@ -432,5 +434,6 @@ docker compose down -v
 ## Related Skills
 - `skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
 - `skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
+- `skills/amc-run-rtsp-calibration/SKILL.md` - Calibrate from live RTSP streams through VIOS capture
 
 <!-- signing marker -->
