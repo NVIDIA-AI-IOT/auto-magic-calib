@@ -1694,5 +1694,5 @@ This repository contains materials released under different licenses:
 The scripts in this repository interact with and pull the proprietary AutoMagicCalib and AutoMagicCalibUI containers. The use of these containers, and any software, data, or intellectual property contained within them, is governed by a separate set of licenses and third-party notices.
 
 The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the containers can be found in:
-- [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=2.0.0)
-- [AutoMagicCalibUI page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib-ui?version=2.0.0)
+- [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=3.2.0)
+- [AutoMagicCalibUI page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib-ui?version=3.2.0)
