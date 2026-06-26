@@ -20,6 +20,7 @@ services:
    
     environment:
       - VGGT_MODEL_PATH=${VGGT_MODEL_PATH:-/tmp/vggt_model/vggt_1B_commercial.pt}
+      - VIOS_BASE_URL=${VIOS_BASE_URL:-}
       - HOST_IP=${HOST_IP:-localhost}
       - AUTO_MAGIC_CALIB_MS_PORT=${AUTO_MAGIC_CALIB_MS_PORT:-8000}
     
