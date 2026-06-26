@@ -10,15 +10,11 @@ Structured skills for AI coding assistants working with AutoMagicCalib. Each ski
 
 **[amc-run-video-calibration](amc-run-video-calibration/SKILL.md)** — Calibrate a camera rig from pre-recorded **MP4 files**. Full API sequence (create project → upload files → verify → calibrate → poll → results), plus manual-alignment UI fallback and optional VGGT refinement.
 
-**[amc-run-rtsp-calibration](amc-run-rtsp-calibration/SKILL.md)** — Calibrate a camera rig from live **RTSP streams**. VIOS records fixed-duration clips, AMC ingests them into the project, then the flow continues through verify → calibrate → poll → results.
-
 ## Typical Flow
 
 1. **First-time setup**: run `amc-setup-calibration-stack` to bring up MS + UI (clones the repo if you don't already have one on disk).
 2. **Verify install**: run `amc-run-sample-calibration` on the bundled sample.
-3. **Calibrate your own data**:
-   - Pre-recorded MP4s → `amc-run-video-calibration`
-   - Live RTSP cameras → `amc-run-rtsp-calibration`
+3. **Calibrate your own data**: pre-recorded MP4s → `amc-run-video-calibration`
 
 ## For Humans
 
