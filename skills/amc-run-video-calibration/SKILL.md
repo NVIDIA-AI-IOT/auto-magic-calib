@@ -1,14 +1,13 @@
 ---
 name: "amc-run-video-calibration"
-description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', or similar."
+description: "Calibrate a new dataset from pre-recorded video files via the AutoMagicCalib REST API. Use when user has local MP4s and says 'calibrate my videos', 'run AMC on these videos', or similar. For RTSP/live streams, use amc-run-rtsp-calibration instead."
 owner: "NVIDIA CORPORATION"
 service: "auto-magic-calib"
 version: "1.0.0"
 reviewed: "2026-04-28"
 license: "Apache-2.0"
+data_classification: public
 metadata:
-  author: "NVIDIA CORPORATION"
-  license: "Apache-2.0"
   tags: [amc, calibration, rest-api, camera, python]
 ---
 
@@ -22,6 +21,8 @@ Activate this skill when the user has pre-recorded MP4 files and wants to calibr
 - "calibrate from video files"
 
 Drives calibration through the REST API on user-supplied **pre-recorded MP4 files** — no CLI scripts or Docker bind-mounts required, just a running microservice and your files.
+
+Do not use this skill for live RTSP streams or `rtsp://...` URLs; route those requests to `skills/amc-run-rtsp-calibration/SKILL.md`.
 
 ## Prerequisites
 
@@ -44,7 +45,7 @@ Video files uploaded via this skill are transmitted to the AutoMagicCalib backen
 
 ### Auto-Detected (ask only if not found)
 
-Scanned silently in the videos dir and its parent; ask only if missing/ambiguous, else UI fallback:
+The script searches the videos dir, its first-level subdirectories, and its parent. If exactly one match is found, it is used; otherwise the script prints the searched locations and continues to explicit path or UI fallback:
 
 | File | Candidate filenames | UI fallback |
 |---|---|---|
@@ -58,7 +59,7 @@ Posting the settings file replaces UI Step 3 and may pin the detector (`resnet`/
 4. **Ground truth zip** — `GT.zip` with `_World_Cameras_Camera_XX/` folders (enables evaluation metrics)
 5. **Focal lengths** — one per camera, e.g. `1269.0, 1099.5, 1099.5`
 6. **Detector type** — `resnet` (default, fast) or `transformer` (slower, better under occlusion)
-7. **Run VGGT refinement?** — only if VGGT model is loaded (see setup skill)
+7. **Run VGGT refinement?** — if VGGT is ready after AMC completes, ask the user whether to run refinement (see setup skill)
 
 See root `README.md` "Custom Dataset" section for input-video guidelines and ground-truth format.
 
@@ -80,9 +81,9 @@ All endpoints below are implemented end-to-end in the [Complete Python Script](#
 
 For each of calibration-settings, alignment, and layout, run this resolution:
 
-1. **Auto-scan** `VIDEO_DIR` and `VIDEO_DIR.parent` for the candidate filenames (table above).
-2. If **exactly one match**, use it silently and print what was found.
-3. If **zero or multiple matches**, ask the user for an explicit path via `AskUserQuestion`. If they don't have the file, mark it for UI fallback.
+1. **Auto-scan** `VIDEO_DIR`, one level of subdirectories under `VIDEO_DIR`, and `VIDEO_DIR.parent` for the candidate filenames (table above).
+2. If **exactly one match**, use it and print what was found.
+3. If **zero or multiple matches**, print the searched locations, then ask the user for an explicit path using the host's question mechanism; if none is available, ask in chat and wait. If they don't have the file, mark it for UI fallback.
 4. **UI fallback**: tell the user to complete the corresponding UI step; wait for confirmation; for alignment/layout also verify files landed in `projects/project_<id>/manual_adjustment/`.
 
 ### Step 4 — Upload Resolved Files
@@ -103,10 +104,10 @@ After a successful settings POST, parse the file for `"detector"` / `"detector_t
 
 If any of settings / alignment / layout was not resolved in Step 3, direct the user to the appropriate UI step:
 
-- **Settings missing** → "Open UI project `<project_id>`, go to **Step 3: Parameters**, tune via the settings dialog (or accept defaults), click Save." **Also**: before the `/calibrate` call, ask the user via `AskUserQuestion` whether to use the `resnet` or `transformer` detector — UI Step 3 doesn't cover detector choice.
+- **Settings missing** → "Open UI project `<project_id>`, go to **Step 3: Parameters**, tune via the settings dialog (or accept defaults), click Save." **Also**: before the `/calibrate` call, ask the user which detector to use (`resnet` or `transformer`) using the host's question mechanism; if none is available, ask in chat and wait. UI Step 3 does not cover detector choice.
 - **Alignment or layout missing** → "Open UI project `<project_id>`, go to **Step 4: Alignment**, upload layout, mark correspondence points, click Save."
 
-Wait for user confirmation. For alignment/layout, verify on disk before continuing:
+Wait for user confirmation. For non-interactive script runs, provide the needed files up front; the script exits with a clear message rather than waiting on input. For alignment/layout, verify on disk before continuing:
 
 ```bash
 REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -124,7 +125,7 @@ ls "$HOST_PROJECTS/project_<project_id>/manual_adjustment/"
 
 ### Step 7 — Start Calibration
 
-**Confirm the plan before calibrating.** Whether the settings file and detector were auto-detected or asked, present a short summary and confirm via `AskUserQuestion` before `POST /calibrate` — the resolved values are the defaults, so confirming is one click, but the user can switch the detector or skip an auto-detected settings file. Summarize:
+**Confirm the plan before calibrating.** Whether the settings file and detector were auto-detected or asked, present a short summary and get explicit user confirmation before `POST /calibrate` using the host's question mechanism; if none is available, ask in chat and wait. The resolved values are the defaults, so confirming is one click, but the user can switch the detector or skip an auto-detected settings file. The standalone Python script prints the same plan and prompts only when stdin is interactive. Summarize:
 
 - **Detector** — `resnet` or `transformer` (the value to be sent).
 - **Calibration settings** — the file being applied (path), or "defaults" if none.
@@ -145,217 +146,29 @@ Content-Type: application/json
 
 `GET /v1/result/<project_id>/evaluation_statistics` (only if GT was uploaded; includes `Average L2 distance(m)` and `Average reprojection error 0(px)`), and `GET /v1/amc/calibrate/<project_id>/log` for the calibration log.
 
+### Status Fields from `get_project_info`
+
+`project_info.project_state` is the AMC calibration lifecycle for the project: `RUNNING` → `COMPLETED` (or `ERROR`).
+
+`project_info.vggt_state` is also **per-project**, a project-scoped VGGT refinement lifecycle rather than a direct global service or model-load status. A newly created project can report `vggt_state: "INIT"` even when the VGGT model is present and mounted. The expected VGGT lifecycle is `INIT` → `READY` after AMC calibration completes → `RUNNING` while VGGT refinement runs → `COMPLETED` (or `ERROR`).
+
+Use `vggt_state == "READY"` only as the gate for optional VGGT refinement in Step 10. Interpret `INIT` on a new or uncalibrated project as normal project state. If AMC calibration is complete and the project remains in a non-ready VGGT state, confirm VGGT setup and model availability with the setup skill checks and service logs.
+
 ### Step 10 — (Optional) VGGT Refinement
 
-Only if `vggt_state == "READY"` (VGGT model staged, see setup skill): `POST /v1/vggt/calibrate/<project_id>`, poll `vggt_state` via `get_project_info`, then `GET /v1/vggt_results/<project_id>/evaluation_statistics`.
+After AMC calibration completes, read `vggt_state` from `GET /v1/get_project_info/<project_id>`.
+
+- If the project reports `vggt_state == "READY"`, ask the user whether to run VGGT refinement using the host's question mechanism; if none is available, ask in chat and wait.
+- If the user confirms, `POST /v1/vggt/calibrate/<project_id>`, poll `vggt_state` via `get_project_info`, then `GET /v1/vggt_results/<project_id>/evaluation_statistics`.
+- If VGGT is not ready, skip refinement and explain that the user can set up VGGT with `amc-setup-calibration-stack` and rerun this optional step later.
+
+The standalone Python script prompts only when stdin is interactive. In non-interactive runs, set `RUN_VGGT = True` to opt in; otherwise the script prints that VGGT is ready and continues without blocking.
 
 ---
 
 ## Complete Python Script
 
-```python
-import os
-import time
-from pathlib import Path
-
-import requests
-
-# --- Edit these ---
-BASE_URL       = "http://<HOST_IP>:<MS_PORT>/v1"
-PROJECT_NAME   = "my_calibration_run"
-VIDEO_DIR      = Path("/path/to/videos")
-# Optional overrides — leave as None to trigger auto-scan -> ask-user -> UI fallback.
-CONFIG_FILE    = None   # settings.json — full UI-Step-3 override; if it pins a detector, it's used below
-ALIGNMENT_JSON = None   # alignment_data.json
-LAYOUT_PNG     = None   # layout.png
-GT_ZIP         = None   # optional GT.zip
-FOCAL_LENGTHS  = None   # optional, e.g. [1269.0, 1099.5]
-DETECTOR_TYPE  = "resnet"   # or "transformer"; overridden if CONFIG_FILE pins one
-RUN_VGGT       = False
-
-# Host projects dir (for verifying manual alignment output); override via PROJECTS_DIR env var.
-REPO_ROOT    = Path(os.environ.get("REPO_ROOT", Path.cwd()))
-PROJECTS_DIR = Path(os.environ.get("PROJECTS_DIR", REPO_ROOT / "projects"))
-
-VIDEO_FILES = sorted(VIDEO_DIR.glob("cam_*.mp4"))
-assert VIDEO_FILES, f"No cam_*.mp4 files under {VIDEO_DIR}"
-
-# --- Auto-scan helper ---
-def _resolve_local(override, candidate_names, scan_dirs, label):
-    """Path if found locally (override or single scan hit), else None (→ ask user / UI fallback)."""
-    if override and Path(override).exists():
-        return Path(override)
-    hits = []
-    for d in scan_dirs:
-        for name in candidate_names:
-            p = d / name
-            if p.exists():
-                hits.append(p)
-    if len(hits) == 1:
-        print(f"    auto-detected {label}: {hits[0]}")
-        return hits[0]
-    if len(hits) > 1:
-        print(f"    multiple {label} candidates in {scan_dirs}: {hits} — skipping auto-detect")
-    return None
-
-_scan_dirs = [VIDEO_DIR, VIDEO_DIR.parent]
-CONFIG_FILE    = _resolve_local(CONFIG_FILE,    ["settings.json", "config.json", "calibration_config.json"], _scan_dirs, "config")
-ALIGNMENT_JSON = _resolve_local(ALIGNMENT_JSON, ["alignment_data.json"],                                       _scan_dirs, "alignment")
-LAYOUT_PNG     = _resolve_local(LAYOUT_PNG,     ["layout.png"],                                                _scan_dirs, "layout")
-
-s = requests.Session()
-
-# Step 1 — Create project
-r = s.post(f"{BASE_URL}/create_project", data={"project_name": PROJECT_NAME})
-r.raise_for_status()
-project_id = r.json()["project_id"]
-print(f"[1] Created project: {project_id}")
-
-# Step 2 — Upload videos (sorted)
-files, handles = [], []
-for v in VIDEO_FILES:
-    f = open(v, "rb"); handles.append(f)
-    files.append(("files", (v.name, f, "video/mp4")))
-r = s.post(f"{BASE_URL}/upload_video_files/{project_id}", files=files, timeout=300)
-for f in handles: f.close()
-r.raise_for_status()
-print(f"[2] Uploaded {len(VIDEO_FILES)} videos")
-
-# Step 3/4 — Upload resolved files
-if CONFIG_FILE and CONFIG_FILE.exists():
-    r = s.post(f"{BASE_URL}/config/{project_id}",
-               data=CONFIG_FILE.read_bytes(),
-               headers={"Content-Type": "application/json"})
-    r.raise_for_status()
-    print(f"[3] Applied calibration config from {CONFIG_FILE.name} (replaces UI Step 3)")
-    # Detector is consumed via the separate /calibrate parameter, so extract it for Step 7.
-    try:
-        import json as _json
-        _cfg = _json.loads(CONFIG_FILE.read_text())
-        _det = _cfg.get("detector") or _cfg.get("detector_type")
-        if _det in ("resnet", "transformer"):
-            DETECTOR_TYPE = _det
-            print(f"    Detector overridden from config: {DETECTOR_TYPE}")
-    except Exception:
-        pass  # non-JSON config or no detector field — keep DETECTOR_TYPE as-is
-
-if ALIGNMENT_JSON and ALIGNMENT_JSON.exists():
-    with open(ALIGNMENT_JSON, "rb") as f:
-        s.post(f"{BASE_URL}/upload_alignment/{project_id}",
-               files={"alignment_file": (ALIGNMENT_JSON.name, f, "application/json")}).raise_for_status()
-    print(f"[3] Uploaded alignment: {ALIGNMENT_JSON.name}")
-
-if LAYOUT_PNG and LAYOUT_PNG.exists():
-    with open(LAYOUT_PNG, "rb") as f:
-        s.post(f"{BASE_URL}/upload_layout/{project_id}",
-               files={"layout_file": (LAYOUT_PNG.name, f, "image/png")}).raise_for_status()
-    print(f"[3] Uploaded layout: {LAYOUT_PNG.name}")
-
-if GT_ZIP and GT_ZIP.exists():
-    with open(GT_ZIP, "rb") as f:
-        s.post(f"{BASE_URL}/upload_gt_file/{project_id}",
-               files={"gt_file": (GT_ZIP.name, f, "application/zip")}, timeout=120).raise_for_status()
-    print(f"[3] Uploaded GT zip")
-
-if FOCAL_LENGTHS:
-    s.post(f"{BASE_URL}/upload_focal_length/{project_id}",
-           data={"focal_length": FOCAL_LENGTHS}).raise_for_status()
-    print(f"[3] Uploaded focal lengths: {FOCAL_LENGTHS}")
-
-# Step 5 — UI fallback for anything not resolved
-ui_tasks = []
-if not CONFIG_FILE:
-    ui_tasks.append("Step 3 (Parameters): tune settings or accept defaults, then Save.")
-if not ALIGNMENT_JSON or not LAYOUT_PNG:
-    ui_tasks.append("Step 4 (Alignment): upload layout, mark correspondence points, then Save.")
-if ui_tasks:
-    print(f"\n[5] UI action required for project {project_id}:")
-    for t in ui_tasks:
-        print(f"    - {t}")
-    input("    Press Enter when done...")
-    # Verify alignment files if the UI fallback was used for alignment
-    if not ALIGNMENT_JSON or not LAYOUT_PNG:
-        manual_dir = PROJECTS_DIR / f"project_{project_id}" / "manual_adjustment"
-        assert (manual_dir / "alignment_data.json").exists() and (manual_dir / "layout.png").exists(), (
-            f"Alignment files missing under {manual_dir}. Re-check UI Step 4 and click Save."
-        )
-        print(f"    Alignment files verified at {manual_dir}")
-
-# Step 6 — Verify
-r = s.post(f"{BASE_URL}/verify_project/{project_id}")
-r.raise_for_status()
-state = r.json()["project_state"]
-print(f"[6] Project state: {state}")
-assert state == "READY", f"Expected READY, got {state}"
-
-# Step 7 — Calibrate
-s.post(f"{BASE_URL}/calibrate/{project_id}",
-       json={"detector_type": DETECTOR_TYPE}).raise_for_status()
-print(f"[7] Calibration started (detector={DETECTOR_TYPE})")
-
-# Step 8 — Poll. Print on every state change, plus a heartbeat at least once a
-# minute so a long RUNNING state still shows progress.
-print(f"[8] Polling (10–60 min typical)...")
-start, last_state, last_beat = time.time(), "", 0.0
-while time.time() - start < 5400:
-    info = s.get(f"{BASE_URL}/get_project_info/{project_id}").json()
-    st = info["project_info"]["project_state"]
-    mins, secs = divmod(int(time.time() - start), 60)
-    if st != last_state or time.time() - last_beat >= 60:
-        print(f"    [{mins:>3}m {secs:02d}s] {st}", flush=True)
-        last_state, last_beat = st, time.time()
-    if st == "COMPLETED":
-        print(f"[8] Done in {mins}m {secs:02d}s"); break
-    if st == "ERROR":
-        # Surface the tail of the calibration log so the failure is actionable.
-        try:
-            log_lines = s.get(f"{BASE_URL}/amc/calibrate/{project_id}/log").text.splitlines()
-            print("    --- last calibration log lines ---")
-            for line in log_lines[-20:]:
-                print(f"    {line}")
-        except Exception:
-            pass
-        raise RuntimeError(f"ERROR state — full log: GET {BASE_URL}/amc/calibrate/{project_id}/log")
-    time.sleep(10)
-else:
-    raise RuntimeError(
-        f"Calibration still running after {int((time.time() - start) // 60)} min — "
-        f"inspect GET {BASE_URL}/amc/calibrate/{project_id}/log"
-    )
-
-# Step 9 — Results
-print(f"\n[9] Results:")
-r = s.get(f"{BASE_URL}/result/{project_id}/evaluation_statistics")
-if r.status_code == 200:
-    for k, v in (r.json().get("statistics") or r.json()).items():
-        print(f"    {k}: {v}")
-else:
-    print("    No GT provided — skipping evaluation_statistics")
-
-# Step 10 — VGGT (optional)
-if RUN_VGGT:
-    info = s.get(f"{BASE_URL}/get_project_info/{project_id}").json()
-    vggt_state = info.get("project_info", {}).get("vggt_state", "INIT")
-    if vggt_state == "READY":
-        s.post(f"{BASE_URL}/vggt/calibrate/{project_id}").raise_for_status()
-        print("\n[10] VGGT started")
-        t0 = time.time()
-        while time.time() - t0 < 900:
-            vs = s.get(f"{BASE_URL}/get_project_info/{project_id}").json() \
-                .get("project_info", {}).get("vggt_state", "INIT")
-            if vs == "COMPLETED":
-                print("     VGGT done"); break
-            if vs == "ERROR":
-                raise RuntimeError("VGGT failed")
-            time.sleep(10)
-    else:
-        print(f"\n[10] VGGT not ready (state={vggt_state}) — skipping")
-
-print(f"\nProject: {project_id}")
-print("Review the calibration:")
-print(f"    UI:                open project {project_id} in the AMC web UI, then the Results page to view the overlay")
-print(f"    Final camera parameters: projects/project_{project_id}/output/multi_view_results/BA_output/results_ba/refined/camInfo_XX.yaml")
-```
+Use `scripts/run_video_calibration.py` for the runnable implementation. Set `BASE_URL`, `PROJECT_NAME`, and `VIDEO_DIR`; optional env vars are `CONFIG_FILE`, `ALIGNMENT_JSON`, `LAYOUT_PNG`, `GT_ZIP`, `FOCAL_LENGTHS`, `DETECTOR_TYPE`, `RUN_VGGT`, `REPO_ROOT`, and `PROJECTS_DIR`. The script implements UI fallback, plan confirmation, VGGT prompt/opt-in behavior, polling, and refined statistics retrieval.
 
 ## Success Criteria
 
@@ -392,7 +205,7 @@ projects/project_<project_id>/
 | Calibration stuck `RUNNING` > 90 min | `GET /v1/amc/calibrate/<id>/log` — usually insufficient tracklets (scene too static). See "Custom Dataset" guidelines in root README. |
 | Immediate `ERROR` state | Check video naming: must be `cam_00.mp4`, `cam_01.mp4`, … contiguous |
 | Low L2 but high reprojection | Provide explicit `focal_length` override via Step 3 |
-| VGGT `INIT`, never `READY` | VGGT model not loaded — see setup skill Step 2 |
+| VGGT stays non-ready after AMC completes | `INIT` is expected for a new project. After AMC calibration reaches `COMPLETED`, the project should transition to `READY` before optional VGGT refinement when VGGT is configured. If refinement is required and the state remains `INIT` or otherwise non-ready, confirm VGGT setup and model availability with setup skill Step 2 and MS logs. |
 | Upload timeout | Large videos — bump `timeout=300` to e.g. `600` in the script |
 
 ## For Downstream Skills — MV3DT Export
@@ -406,5 +219,8 @@ A downstream Multi-View 3D Tracking skill fetches the MV3DT-format calibration d
 
 - `skills/amc-setup-calibration-stack/SKILL.md` — start MS + UI first.
 - `skills/amc-run-sample-calibration/SKILL.md` — verify the stack with the bundled sample before trying your own.
+- `skills/amc-run-rtsp-calibration/SKILL.md` — same calibration tail, but sourcing footage from live RTSP streams through VIOS.
 
 Root `README.md` "Custom Dataset" and "Calibration Workflow (UI)" sections document input-video guidelines and the UI-driven alternative to this API flow.
+
+<!-- signing marker -->

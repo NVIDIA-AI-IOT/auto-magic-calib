@@ -4,10 +4,10 @@
     "question": "Launch AutoMagicCalib. I have a clean clone of the repo and docker runs without sudo.",
     "expected_skill": "amc-setup-calibration-stack",
     "expected_script": null,
-    "ground_truth": "The agent grounds itself in amc-setup-calibration-stack and lays out the correct launch plan and credential handling: collect the NGC API key via AskUserQuestion (never echoed or persisted), docker login nvcr.io with --password-stdin, discover free ports in 8000-8009 (MS) and 5000-5009 (UI), write compose/.env with AUTO_MAGIC_CALIB_MS_PORT, AUTO_MAGIC_CALIB_UI_PORT, and HOST_IP (chmod 600), run the fail-fast image-access check before pulling, confirm with the user before the scoped chown of projects/ and models/, then docker compose up -d and verify /v1/ready before reporting the MS, Swagger, and UI URLs. If Docker, the NGC registry, or GPU resources are not actually reachable in this environment, the agent surfaces that and stops rather than fabricating a running stack or its URLs.",
+    "ground_truth": "The agent grounds itself in amc-setup-calibration-stack and lays out the correct launch plan and credential handling: collect the NGC API key using the host's question mechanism, or chat if unavailable (never echoed or persisted), docker login nvcr.io with --password-stdin, discover free ports in 8000-8009 (MS) and 5000-5009 (UI), write compose/.env with AUTO_MAGIC_CALIB_MS_PORT, AUTO_MAGIC_CALIB_UI_PORT, and HOST_IP (chmod 600), run the fail-fast image-access check before pulling, confirm with the user before the scoped chown of projects/ and models/, then docker compose up -d and verify /v1/ready before reporting the MS, Swagger, and UI URLs. If Docker, the NGC registry, or GPU resources are not actually reachable in this environment, the agent surfaces that and stops rather than fabricating a running stack or its URLs.",
     "expected_behavior": [
       "The agent identifies amc-setup-calibration-stack and grounds its plan in that SKILL.md",
-      "The agent collects the NGC API key via AskUserQuestion and does not echo or persist it in its response",
+      "The agent collects the NGC API key using the host's question mechanism, or chat if unavailable, and does not echo or persist it in its response",
       "The agent lays out the launch sequence: docker login (--password-stdin), free-port discovery, compose/.env, image-access check, scoped chown with confirmation, compose up, and /v1/ready verification",
       "The agent confirms with the user before running the scoped chown on projects/ and models/",
       "The agent does not silently bypass docker permission issues with sudo",
@@ -20,9 +20,9 @@
     "question": "Launch AMC and download VGGT so model-based calibration works. I have a HuggingFace token ready.",
     "expected_skill": "amc-setup-calibration-stack",
     "expected_script": null,
-    "ground_truth": "The agent describes the correct optional-VGGT decision and credential handling: check for models/vggt/vggt_1B_commercial.pt, treat VGGT as optional (AMC calibration works without it), collect the HuggingFace token via AskUserQuestion (not via a shell prompt and not echoed back), pass it via the HF_TOKEN env var (not via --token on the command line so it doesn't leak via ps/argv), reference the facebook/VGGT-1B-Commercial repo and the one-time license accept, use the hf CLI, and sequence the download before any chown 1000 on the models directory. If the model, token, or network are not actually available in this environment, the agent surfaces that and stops rather than fabricating a completed download.",
+    "ground_truth": "The agent describes the correct optional-VGGT decision and credential handling: check for models/vggt/vggt_1B_commercial.pt, treat VGGT as optional (AMC calibration works without it), collect the HuggingFace token using the host's question mechanism, or chat if unavailable (not via a shell prompt and not echoed back), pass it via the HF_TOKEN env var (not via --token on the command line so it doesn't leak via ps/argv), reference the facebook/VGGT-1B-Commercial repo and the one-time license accept, use the hf CLI, and sequence the download before any chown 1000 on the models directory. If the model, token, or network are not actually available in this environment, the agent surfaces that and stops rather than fabricating a completed download.",
     "expected_behavior": [
-      "The agent collects the HuggingFace token via AskUserQuestion and does not echo it back",
+      "The agent collects the HuggingFace token using the host's question mechanism, or chat if unavailable, and does not echo it back",
       "The agent passes the token via the HF_TOKEN environment variable, not via --token on the command line",
       "The agent sequences the VGGT download before chowning the models directory",
       "The agent references the facebook/VGGT-1B-Commercial HuggingFace repo and the one-time license-accept requirement",
@@ -46,14 +46,14 @@
   },
   {
     "id": "amc-setup-calibration-stack-004",
-    "question": "I tried launching AMC but docker compose up fails with 401 Unauthorized pulling nvcr.io/nvidia/auto-magic-calib:2.0.0.",
+    "question": "I tried launching AMC but docker compose up fails with 401 Unauthorized pulling the nvcr.io/nvidia/auto-magic-calib image tag from compose/ms/compose.yml.",
     "expected_skill": "amc-setup-calibration-stack",
     "expected_script": null,
-    "ground_truth": "The agent identifies the NGC authentication failure, collects a valid NGC API key from the user via AskUserQuestion, re-runs docker login nvcr.io with --password-stdin, then re-attempts docker compose up. It does not hardcode or echo the API key in its response.",
+    "ground_truth": "The agent identifies the NGC authentication failure, collects a valid NGC API key from the user using the host's question mechanism, or chat if unavailable, re-runs docker login nvcr.io with --password-stdin, then re-attempts docker compose up. It does not hardcode or echo the API key in its response.",
     "expected_behavior": [
       "The agent recognises 401 Unauthorized as an NGC auth issue",
       "The agent re-runs docker login nvcr.io with --password-stdin rather than ignoring the failure",
-      "The agent collects the NGC API key via AskUserQuestion and does not echo it back",
+      "The agent collects the NGC API key using the host's question mechanism, or chat if unavailable, and does not echo it back",
       "The agent does not hardcode or persist the API key"
     ]
   },
