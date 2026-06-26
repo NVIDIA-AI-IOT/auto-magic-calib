@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
 ## Use Case: <br>
-Developers and engineers who need to calibrate multi-camera systems from pre-recorded MP4 video files using the AutoMagicCalib REST API. <br>
+Developers and engineers who need to calibrate camera setups from pre-recorded MP4 video files using the AutoMagicCalib REST API. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -20,7 +20,7 @@ Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
 - [run_video_calibration.py](scripts/run_video_calibration.py) <br>
-- [agentskills.io Specification](https://agentskills.io/specification) <br>
+- [AgentSkills.io Specification](https://agentskills.io/specification) <br>
 
 
 ## Skill Output: <br>
@@ -36,7 +36,7 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-Evaluated against 6 internal evaluation tasks (5 positive activation, 1 negative activation). <br>
+Evaluated against 6 internal evaluation tasks (5 positive skill-activation, 1 negative) via the NVSkills-Eval internal profile. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
@@ -60,11 +60,11 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 6 | 100% (+0%) | 100% (+8%) |
-| Correctness | 6 | 82% (+40%) | 75% (+29%) |
-| Discoverability | 6 | 91% (+33%) | 82% (+24%) |
-| Effectiveness | 6 | 54% (+31%) | 49% (+22%) |
-| Efficiency | 6 | 78% (+26%) | 71% (+21%) |
+| Security | 6 | 92% (-8%) | 92% (+0%) |
+| Correctness | 6 | 93% (+53%) | 67% (+25%) |
+| Discoverability | 6 | 94% (+45%) | 83% (+25%) |
+| Effectiveness | 6 | 64% (+41%) | 41% (+18%) |
+| Efficiency | 6 | 81% (+35%) | 73% (+22%) |
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>

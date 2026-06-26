@@ -23,9 +23,7 @@ Activate this skill when the user wants to sanity-check a running AMC stack with
 
 **Do NOT use this skill when:**
 
-- The user references their own video paths (e.g. `/data/videos/`, `cam_*.mp4` not from the bundled zip) — route to `amc-run-video-calibration`.
-- The user provides live RTSP streams or `rtsp://...` URLs — route to `amc-run-rtsp-calibration`.
-- This skill is exclusively for `assets/sdg_08_2_sample_data_010926.zip`.
+- The user references their own video paths (e.g. `/data/videos/`, `cam_*.mp4` not from the bundled zip) — route to `amc-run-video-calibration`. This skill is exclusively for `assets/sdg_08_2_sample_data_010926.zip`.
 
 Prerequisite: AMC microservice running on a port in 8000-8009. If no backend is detected, delegate to `amc-setup-calibration-stack` first.
 
@@ -196,7 +194,6 @@ The root `README.md` also documents `nv_warehouse_032326.zip`, a real-world ware
 
 - `skills/amc-setup-calibration-stack/SKILL.md` — launch MS + UI (prerequisite).
 - `skills/amc-run-video-calibration/SKILL.md` — run calibration on your own pre-recorded MP4s.
-- `skills/amc-run-rtsp-calibration/SKILL.md` — run calibration from live RTSP streams through VIOS capture.
 
 Root `README.md` "Sample Data Setup" and "Calibration Workflow (UI)" sections cover the human-oriented path through the same sample.
 
