@@ -240,8 +240,6 @@ cat .env
 
 Optional: set `VGGT_MODEL_PATH` only if the VGGT model is mounted at a non-default container path; default is `/tmp/vggt_model/vggt_1B_commercial.pt` inside the MS container.
 
-Optional for RTSP calibration: use `skills/amc-run-rtsp-calibration/SKILL.md` after launch. That skill verifies VIOS reachability and, when needed, relaunches the microservice with a temporary compose override that exports `VIOS_BASE_URL` without changing checked-in compose files.
-
 ### Step 4: Set Directory Permissions
 
 The containers run as UID/GID 1000. The `projects` and `models` directories must be owned by this UID for containers to read/write properly:
@@ -302,11 +300,9 @@ docker compose ps
 **Expected output**:
 ```
 NAME                    IMAGE                                                              STATUS
-auto-magic-calib-ms-1   nvcr.io/nvidia/auto-magic-calib:<tag-from-compose>      Up (healthy)
-auto-magic-calib-ui-1   nvcr.io/nvidia/auto-magic-calib-ui:<tag-from-compose>   Up
+auto-magic-calib-ms-1   nvcr.io/nvidia/auto-magic-calib:2.0.0           Up (healthy)
+auto-magic-calib-ui-1   nvcr.io/nvidia/auto-magic-calib-ui:2.0.0        Up
 ```
-
-The exact image tags change by release. Read the active tags from `compose/ms/compose.yml` and `compose/ui/compose.yml` instead of hardcoding a version in the skill.
 
 ### Step 6: Verify Services Are Running
 
@@ -436,6 +432,5 @@ docker compose down -v
 ## Related Skills
 - `skills/amc-run-sample-calibration/SKILL.md` - Sanity-check the running stack with the bundled sample dataset
 - `skills/amc-run-video-calibration/SKILL.md` - Calibrate from your own pre-recorded MP4s via REST API
-- `skills/amc-run-rtsp-calibration/SKILL.md` - Calibrate from live RTSP streams through VIOS capture
 
 <!-- signing marker -->

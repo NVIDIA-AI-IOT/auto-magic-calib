@@ -1,5 +1,5 @@
 ## Description: <br>
-Run end-to-end calibration on the shipped sample dataset against a running AMC microservice to verify installation and produce evaluation metrics. <br>
+Run end-to-end calibration on the shipped sample dataset (sdg_08_2_sample_data_010926.zip) against a running AMC microservice. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
 ## Use Case: <br>
-Developers and engineers validating an AutoMagicCalib deployment by running calibration against the bundled synthetic sample dataset to confirm the stack works end-to-end before processing real data. <br>
+Developers and engineers use this skill to verify that a freshly-launched AutoMagicCalib microservice works end-to-end by running calibration on the bundled synthetic sample dataset with ground truth. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -20,11 +20,10 @@ Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
 - [AgentSkills.io Specification](https://agentskills.io/specification) <br>
-- [run_sample_calibration.py](scripts/run_sample_calibration.py) <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [Shell commands, API Calls, Analysis] <br>
+**Output Type(s):** [Shell commands, API Calls, Evaluation metrics] <br>
 **Output Format:** [Markdown with inline bash code blocks] <br>
 **Output Parameters:** [1D] <br>
 **Other Properties Related to Output:** [None] <br>
@@ -36,7 +35,7 @@ Mitigation: Review and scan skill before deployment. <br>
 
 
 ## Evaluation Tasks: <br>
-Evaluated against 5 internal evaluation tasks (3 positive skill-activation, 2 negative activation). <br>
+Evaluated against 5 evaluation tasks (3 positive activation, 2 negative activation) in an astra-sandbox environment. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
@@ -58,13 +57,13 @@ Underlying evaluation signals used in this run: <br>
 
 
 ## Evaluation Results: <br>
-| Dimension | Num | Claude Code | Codex |
+| Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 5 | 100% (+0%) | 90% (-10%) |
-| Correctness | 5 | 91% (+38%) | 86% (+33%) |
-| Discoverability | 5 | 85% (+9%) | 93% (+20%) |
-| Effectiveness | 5 | 90% (+53%) | 79% (+39%) |
-| Efficiency | 5 | 74% (+5%) | 87% (+19%) |
+| Security | 5 | 100% (+0%) | 80% (-20%) |
+| Correctness | 5 | 87% (+34%) | 95% (+41%) |
+| Discoverability | 5 | 83% (+7%) | 92% (+16%) |
+| Effectiveness | 5 | 81% (+43%) | 89% (+47%) |
+| Efficiency | 5 | 72% (+3%) | 86% (+15%) |
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>

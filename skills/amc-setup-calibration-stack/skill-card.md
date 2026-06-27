@@ -9,7 +9,7 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
 ## Use Case: <br>
-Developers and engineers deploying the AutoMagicCalib camera calibration stack using NVIDIA NGC container images via Docker Compose for production or development environments. <br>
+Developers and engineers deploying the AutoMagicCalib camera calibration stack for production or evaluation use via Docker Compose on GPU-enabled hosts. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
@@ -20,8 +20,8 @@ Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
 - [AutoMagicCalib GitHub Repository](https://github.com/NVIDIA-AI-IOT/auto-magic-calib) <br>
-- [VGGT-1B-Commercial Model](https://huggingface.co/facebook/VGGT-1B-Commercial) <br>
-- [Docker Post-Install (rootless setup)](https://docs.docker.com/engine/install/linux-postinstall/) <br>
+- [VGGT-1B-Commercial Model Card](https://huggingface.co/facebook/VGGT-1B-Commercial) <br>
+- [Docker Post-Install Guide](https://docs.docker.com/engine/install/linux-postinstall/) <br>
 
 
 ## Skill Output: <br>
@@ -61,16 +61,11 @@ Underlying evaluation signals used in this run: <br>
 ## Evaluation Results: <br>
 | Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 6 | 100% (+0%) | 83% (-17%) |
-| Correctness | 6 | 71% (+14%) | 81% (+18%) |
-| Discoverability | 6 | 62% (-3%) | 81% (+13%) |
-| Effectiveness | 6 | 69% (+26%) | 69% (+25%) |
-| Efficiency | 6 | 63% (+2%) | 77% (+14%) |
-
-## Testing Completed: <br>
-**[x] Agent Red-Teaming** <br>
-**[ ] Network Security** <br>
-**[ ] Product Security** <br>
+| Security | 6 | 83% (+0%) | 83% (-17%) |
+| Correctness | 6 | 78% (+21%) | 87% (+25%) |
+| Discoverability | 6 | 63% (+6%) | 71% (+4%) |
+| Effectiveness | 6 | 75% (+31%) | 67% (+21%) |
+| Efficiency | 6 | 65% (+10%) | 64% (+1%) |
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>
