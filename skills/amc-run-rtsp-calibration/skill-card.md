@@ -1,5 +1,5 @@
 ## Description: <br>
-Run end-to-end calibration on the shipped sample dataset (sdg_08_2_sample_data_010926.zip) against a running AMC microservice. <br>
+Calibrate a new dataset from live RTSP camera streams via the AutoMagicCalib REST API. Use when the user provides RTSP URLs or asks to calibrate live cameras; VIOS records clips, AMC ingests them, then runs calibration. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
@@ -9,14 +9,14 @@ NVIDIA <br>
 ### License/Terms of Use: <br>
 Apache-2.0 <br>
 ## Use Case: <br>
-Developers and engineers validating that a freshly-launched AutoMagicCalib microservice works end-to-end by running calibration against the bundled sample dataset with ground truth. <br>
+Developers and engineers who need to calibrate camera systems from live RTSP streams using the AutoMagicCalib microservice REST API. <br>
 
 ### Deployment Geography for Use: <br>
 Global <br>
 
 ## Requirements / Dependencies: <br>
-**Requires API Key or External Credential:** [Not Specified] <br>
-**Credential Type(s):** [None identified] <br>
+**Requires API Key or External Credential:** [Optional] <br>
+**Credential Type(s):** [API key] <br>
 
 Do not include secrets in prompts/logs/output; use least-privilege credentials; rotate keys as appropriate. <br>
 
@@ -25,22 +25,23 @@ Risk: Review before execution as proposals could introduce incorrect or misleadi
 Mitigation: Review and scan skill before deployment. <br>
 
 ## Reference(s): <br>
+- [run_rtsp_calibration.py](scripts/run_rtsp_calibration.py) <br>
 
 
 ## Skill Output: <br>
-**Output Type(s):** [Shell commands, API Calls, Analysis] <br>
+**Output Type(s):** [API Calls, Shell commands, Configuration instructions] <br>
 **Output Format:** [Markdown with inline bash code blocks] <br>
 **Output Parameters:** [1D] <br>
 **Other Properties Related to Output:** [None] <br>
 
 ## Evaluation Agents Used: <br>
-- Claude Code (`claude-code`) <br>
-- Codex (`codex`) <br>
+- claude-code <br>
+- codex <br>
 
 
 
 ## Evaluation Tasks: <br>
-Evaluated against 5 evaluation tasks (3 positive skill-activation, 2 negative) in the NVSkills-Eval internal profile. <br>
+6 evaluation tasks (5 positive skill-activation, 1 negative) from NVSkills-Eval internal profile in astra-sandbox environment. <br>
 
 ## Evaluation Metrics Used: <br>
 Reported benchmark dimensions: <br>
@@ -62,13 +63,13 @@ Underlying evaluation signals used in this run: <br>
 
 
 ## Evaluation Results: <br>
-| Dimension | Num | Claude Code (`claude-code`) | Codex (`codex`) |
+| Dimension | Num | `claude-code` | `codex` |
 |---|---:|---:|---:|
-| Security | 5 | 100% (+0%) | 100% (+0%) |
-| Correctness | 5 | 95% (+48%) | 97% (+52%) |
-| Discoverability | 5 | 82% (+14%) | 93% (+28%) |
-| Effectiveness | 5 | 93% (+51%) | 90% (+51%) |
-| Efficiency | 5 | 75% (+7%) | 84% (+19%) |
+| Security | 6 | 100% (+0%) | 92% (-8%) |
+| Correctness | 6 | 55% (+27%) | 74% (+39%) |
+| Discoverability | 6 | 48% (+8%) | 87% (+43%) |
+| Effectiveness | 6 | 51% (+27%) | 61% (+28%) |
+| Efficiency | 6 | 53% (+10%) | 81% (+32%) |
 
 ## Skill Version(s): <br>
 1.0.0 (source: frontmatter) <br>

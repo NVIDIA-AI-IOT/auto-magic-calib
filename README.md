@@ -53,6 +53,25 @@ The service supports both a geometry-based approach (AMC) using object trajector
 <br><br>
 # Quick Start
 
+### Agent Skills
+This repository includes AutoMagicCalib agent skills under `skills/`. Start with `skills/README.md` to install or select the setup, sample, video, or RTSP calibration skill. Full calibration runs require the runtime prerequisites below and are not expected to complete in restricted or no-GPU sandboxes; in those environments, agents should limit work to planning, configuration review, and command preparation.
+
+Quick install:
+
+```bash
+# Claude Code
+mkdir -p ~/.claude/skills
+cp -r skills/amc-* ~/.claude/skills/
+
+# Codex
+mkdir -p ~/.codex/skills
+cp -r skills/amc-* ~/.codex/skills/
+```
+
+Restart or reopen the coding assistant after copying the skills. See `skills/README.md` for the full skill catalog and example prompts.
+
+Expected runtime varies by host, image/model downloads, video length, and detector choice. The bundled sample can take several minutes up to about 30 minutes, custom video calibration can take 10-60+ minutes, and optional VGGT refinement usually adds a few minutes.
+
 ### System Requirements
 - x86_64 system
 - OS Ubuntu 24.04
