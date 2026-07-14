@@ -311,6 +311,7 @@ At the top of the page, you'll see a status summary showing:
 - **Minimum**: 1 video file (2 or more for multi-camera calibration)
 - **Formats**: MP4
 - **Required Video Resolution**: 1920×1080
+- **Input assumptions**: See [Assumptions](#assumptions) for video content and recording requirements
 
 Provide camera inputs using **either** file upload **or** RTSP URLs (one camera for single-camera calibration, two or more for multi-camera). **RTSP URLs as Input is available only when VIOS is configured on the Auto Calibration server**; otherwise use file upload. The UI does not allow an active file-upload queue and RTSP capture at the same time; remove file-uploaded clips before switching to RTSP, and vice versa.
 
