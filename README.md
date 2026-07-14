@@ -109,15 +109,13 @@ Optionally you can download VGGT model for model based calibration
 
 Download the VGGT commercial model from [HuggingFace](https://huggingface.co/facebook/VGGT-1B-Commercial). Downloaded model must be copied to appropriate model directory as mentioned below.
 
-> **Note:** You need to sign up for a HuggingFace account and accept the model license to download.
-
-#### Optional VIOS Setup for RTSP Capture
+> **Note:** You need to sign up for a HuggingFace account and accept the model licenv_warehouse_071026.zip#### Optional VIOS Setup for RTSP Capture
 RTSP support requires `VIOS_BASE_URL`. If a VIOS server is already reachable from the AMC host, verify it before setting `VIOS_BASE_URL` in `compose/.env`. Without VIOS, the rest of the calibration workflow can run, but RTSP support remains disabled.
 
 If VIOS is not deployed yet, use the VIOS deployment assets from the VSS repository:
 
 ```text
-https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization/tree/develop/services/vios/deployment
+https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization/tree/main/services/vios/deployment
 ```
 
 Follow `1click_README.md` in that directory. A typical development deployment command is:
@@ -202,7 +200,7 @@ assets/sdg_08_2_sample_data_010926.zip
 
 Now you're ready to start the calibration process.
 
-To try real world case, we have another sample data file [nv_warehouse_032326.zip](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/amc-nv-warehouse). The sample folder includes 4 different files. It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](#configuring-settings). For AMC calibration in the Execute step set the `Detector Type` as `Transformer`.
+To try real world case, we have another sample data file [nv_warehouse_071026.zip](https://catalog.ngc.nvidia.com/orgs/nvidia/resources/amc-nv-warehouse). The sample folder includes 4 different files. It does not have ground-truth data. Additionally it has `nv_warehouse_config.json`, which should be uploaded in the [config param step](#configuring-settings). For AMC calibration in the Execute step set the `Detector Type` as `Transformer`.
 
 To download the dataset use the following command:
 ```bash
@@ -337,7 +335,7 @@ Provide camera inputs using **either** file upload **or** RTSP URLs (one camera 
 *(Shown only when VIOS is configured on the server side.)*
 
 1. Finish or clear any pending **Video Files** selection or upload before starting RTSP; if the project already has clips from file upload, remove them under **Video Files** first
-2. In the **RTSP capture (VIOS)** card, set **Duration (seconds)** (minimum **60** seconds, per server requirement)
+2. In the **RTSP capture** card, set **Duration (seconds)** (minimum **60** seconds, per server requirement)
 3. Under **Streams**, enter **all** **RTSP URLs** for the project before capturing. Use **Add stream** for additional cameras. Optionally set **Camera name**
 4. Click **Start capture** **once** for the full stream list (all cameras record together). Do not add streams later or run separate captures at different times—that breaks time synchronization
 5. Wait for the status chip and progress bar (**STARTING** → **RECORDING** → **STOPPING** / **INGESTING** as applicable)
@@ -1469,6 +1467,7 @@ For a custom dataset, you should prepare the following items:
 - **Input videos or RTSP streams** — Camera video files **or** time-synchronized RTSP streams
 - **A floor map** — Layout/map image of the surveillance area (PNG)
 - **Alignment data** — `alignment_data.json` (upload or create in the UI; see [Alignment Data](#alignment-data-alignment_datajson))
+- **Layout Pixels Per Meter** — Number of pixels per meter in the layout floor map. Update this value in [Step 3: Parameters](#step-3-parameters).
 - **Ground truth data (optional)** — For calibration evaluation
 
 ## Input Requirements
