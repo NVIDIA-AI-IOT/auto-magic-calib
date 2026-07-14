@@ -35,9 +35,8 @@ The service supports both a geometry-based approach (AMC) using object trajector
   - [Step 5: Execute Calibration](#step-5-execute-calibration)
   - [Step 6: Results](#step-6-results)
 - [Assumptions](#assumptions)
-  - [Input Video Contents](#input-video-contents)
-  - [Input Video Resolution](#input-video-resolution)
-  - [Time-synced Input Videos](#time-synced-input-videos)
+  - [Tracklet-Based Calibration: Input Video Requirements](#tracklet-based-calibration-input-video-requirements)
+  - [Lens Distortion Output (`distortion.yaml`)](#lens-distortion-output-distortionyaml)
 - [Custom Dataset](#custom-dataset)
   - [Input Requirements](#input-requirements)
   - [Alignment Data (alignment_data.json)](#alignment-data-alignment_datajson)
@@ -226,7 +225,7 @@ The UI presents a **6-step stepper workflow**. Each step validates its inputs be
 
 The Project Setup step allows you to create and manage calibration projects.
 
-![Project Setup Step](resources/images/vss-autocalib-ui/project_setup_step.jpg)
+![Project Setup Step](resources/images/vss-autocalib-ui/main-ui-2.jpg)
 
 ### Creating a New Project
 
@@ -1340,19 +1339,128 @@ After completing calibration:
 
 # Assumptions
 
-AutoMagicCalib makes several assumptions about input data structure. Please ensure your data follows these requirements:
+AutoMagicCalib makes several assumptions about input data structure. Please ensure your data follows these requirements before you deploy the service or record footage.
 
-## Input Video Contents:
-There must be objects moving around the scene, because AMC relies on tracking results.
-For **multi-camera** projects, cameras must be specified in order and have overlapping areas: `cam_00` overlaps with `cam_01`, and `cam_01` overlaps with `cam_02`, ...
-For **single-camera** projects, one video (or one RTSP URL) is sufficient.
+## Tracklet-Based Calibration: Input Video Requirements
 
-## Input Video Resolution:
-Uploaded video files' resolution should be 1920×1080.
+AutoMagicCalib (AMC) estimates camera parameters by detecting and tracking **people** in your footage, then matching those trajectories (**tracklets**) across camera views. Calibration quality depends heavily on input video content.
 
-## Time-synced Input Videos:
-Input video files or RTSP streams from all cameras must be synchronized and cover the **same time window**. For RTSP, use one combined **Start capture** for every stream—staggered or later-added streams break calibration.
+> **Note:** These requirements apply to the **tracklet-based AMC pipeline** (the default calibration path). This is not applicable to the optional VGGT model-based calibration path.
 
+**Video content (required for AMC)**
+
+- **Moving people**: People must be clearly visible and moving throughout the clip. AMC relies on PeopleNet detection and 3D tracking of people in the scene.
+- **Scene coverage**: Trajectories should span as much of each camera's field of view as possible. More unique walkers and broader coverage produce more usable tracklets.
+- **Recommended headcount**: Plan for **many** moving people in the scene. As a practical guideline, aim for **at least 10 unique individuals** walking through the monitored area during the recording window (more is better for multi-camera overlap).
+
+**Video duration**
+
+- **Recommended**: **five minutes or longer** per camera. There is no strict minimum, but given the size of the space to calibrate and normal walking speed, longer clips let the tracker build stable trajectories across the field of view; short clips often fail during multi-view **tracklet matching**.
+
+**Resolution and format**
+
+- **Resolution**: **1920 × 1080**
+- **Format** (file upload): MP4
+
+**Multi-camera specifics**
+
+- **Camera count**: Two or more time-synchronized videos or RTSP streams (one stream for single-camera calibration).
+- **Time synchronization**: All cameras must cover the **same time window**. Use clips recorded in sync or post-processed to be in sync. For RTSP, use one combined **Start capture** for every stream—staggered or later-added streams break calibration.
+- **FOV order**: List cameras in **order of overlapping field of view** (`cam_00` overlaps `cam_01`, `cam_01` overlaps `cam_02`, and so on).
+- **FOV overlap**: For the best calibration quality, more overlap between consecutive camera pairs is better. Aim for **at least 30% FOV overlap**; insufficient overlap reduces matched tracklets and often causes multi-view calibration to fail.
+
+**Tracklet thresholds (why the above matters)**
+
+AMC filters and matches tracklets before multi-view calibration. Default pipeline settings include:
+
+- **Minimum tracklet length**: 90 frames (approximately three seconds at 30 fps)—short or jittery tracks are discarded.
+- **Minimum matched tracklets** (multi-camera): six cross-camera tracklet correspondences per camera pair (three in robust two-view fallback).
+
+If your videos lack enough moving people or are too short, calibration may fail at detection, tracking, or **tracklet matching**. You may need to adjust the configuration parameters through the UI or capture better videos. See [Custom Dataset](#custom-dataset) for capture best practices and [Troubleshooting](#troubleshooting) if tracklet matching fails.
+
+## Lens Distortion Output (`distortion.yaml`)
+
+AMC can accept videos that contain **lens distortion**. When rectification is enabled (distortion model set to something other than `pinhole` in the rectification settings), the pipeline:
+
+1. Estimates per-camera distortion parameters (primarily **k1**)
+2. **Rectifies** video frames internally so that subsequent calibration (tracking, tracklet matching, bundle adjustment) runs on undistorted imagery
+3. Writes estimated parameters to disk for downstream use
+
+**Important for downstream applications**
+
+Rectified videos (`rectified.mp4`) are produced under each camera's single-view output folder on the server, but they are **not** automatically substituted for your original camera feeds in downstream applications. Exported calibration JSON and MV3DT ZIP files describe cameras in the **rectified (undistorted) image space**.
+
+To stay consistent with AMC calibration results, downstream applications must either:
+
+- Apply the saved `distortion.yaml` parameters to undistort live or recorded frames before using AMC projection matrices, **or**
+- Manually replace input videos with the per-camera `rectified.mp4` files from the calibration output (not wired automatically by the microservice)
+
+**Output location**
+
+Per camera (example paths on the calibration server):
+
+```text
+<project_output>/single_view_results/cam_00/distortion.yaml
+<project_output>/single_view_results/cam_00/geocalib_distortion.yaml   # when GeoCalib estimates distortion
+<project_output>/single_view_results/cam_00/rectified.mp4
+```
+
+**`distortion.yaml` format**
+
+This is the parameter file AMC rectification writes for application use. It contains the distortion coefficient in AMC/OpenCV pixel-centered convention (focal length treated as 1, origin at image center):
+
+```yaml
+k1: -1.2345678e-06
+```
+
+**`geocalib_distortion.yaml` format** (when distortion estimation runs)
+
+GeoCalib writes a richer record that includes the distortion model name and both coordinate conventions:
+
+```yaml
+model: simple_radial        # or radial, simple_divisional (must match rectification config)
+k1: -1.2345678e-06          # AMC/OpenCV convention: radial factor = 1 + k1 * r_pixel^2
+k1_geocalib: -4.5678901e-03 # GeoCalib internal normalized coordinates
+focal_length: 1269.0        # focal length used for k1 conversion
+source: geocalib
+k2: ...                     # present only when model is radial
+```
+
+**Distortion model**
+
+AMC rectification uses a **Brown–Conrady radial** model (inverse mapping for undistortion). For the default `simple_radial` model, only **k1** is non-zero:
+
+- Undistorted normalized radius: `r_u = r_d * (1 + k1 * r_d^2 + k2 * r_d^4 + k3 * r_d^6)` (iterative inverse solve)
+- Pixel coordinates use the image center as the principal point; `k1` in `distortion.yaml` is already scaled to full-resolution pixel units
+
+Supported model names (set in rectification config, must match between GeoCalib and rectification):
+
+- `pinhole` — no distortion; rectification skipped
+- `simple_radial` — single k1 term (most common)
+- `radial` — k1 and k2 terms
+- `simple_divisional` — division model variant
+
+**Applying distortion correction downstream**
+
+Use `k1` from `distortion.yaml` with OpenCV's undistortion APIs. Example (Python, per frame):
+
+```python
+import cv2
+import numpy as np
+import yaml
+
+with open("distortion.yaml") as f:
+    k1 = float(yaml.safe_load(f)["k1"])
+
+h, w = frame.shape[:2]
+camera_matrix = np.array([[1, 0, w / 2], [0, 1, h / 2], [0, 0, 1]], dtype=np.float64)
+dist_coeffs = np.array([k1, 0, 0, 0], dtype=np.float64)
+rectified = cv2.undistort(frame, camera_matrix, dist_coeffs)
+```
+
+Ensure the same image resolution (1920 × 1080) and that you undistort **before** projecting detections with AMC camera matrices. If rectification was disabled (`pinhole` / `general.skip: true`), no `distortion.yaml` is needed and raw video matches calibration space.
+
+See also [Custom Dataset](#custom-dataset) (lens distortion guidance) and the AutoMagicCalib `rectification_config.yaml` in the source repository for tuning search ranges and model selection.
 
 # Custom Dataset
 
