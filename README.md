@@ -1468,7 +1468,7 @@ For a custom dataset, you should prepare the following items:
 - **Input videos or RTSP streams** — Camera video files **or** time-synchronized RTSP streams
 - **A floor map** — Layout/map image of the surveillance area (PNG)
 - **Alignment data** — `alignment_data.json` (upload or create in the UI; see [Alignment Data](#alignment-data-alignment_datajson))
-- **Layout Pixels Per Meter** — Number of pixels per meter in the layout floor map. Update this value in [Step 3: Parameters](#step-3-parameters).
+- **Layout Pixels Per Meter** — Number of pixels per meter in the layout floor map. Update this value under [Configuring Settings](#configuring-settings).
 - **Ground truth data (optional)** — For calibration evaluation
 
 ## Input Requirements
