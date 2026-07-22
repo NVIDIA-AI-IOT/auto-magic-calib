@@ -81,6 +81,11 @@ Expected runtime varies by host, image/model downloads, video length, and detect
 
 ### NGC Setup
 This step is needed to pull AutoMagicCalib docker images.
+
+Docker Compose uses these release images:
+- `nvcr.io/nvidia/auto-magic-calib:3.2.1`
+- `nvcr.io/nvidia/auto-magic-calib-ui:3.2.1`
+
 1. Visit NGC sign in page, enter your email address and click Next, or Create an Account
 2. Choose your Organization/Team
 3. Generate an API key following the instructions
