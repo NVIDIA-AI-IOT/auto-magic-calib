@@ -81,6 +81,7 @@ Expected runtime varies by host, image/model downloads, video length, and detect
 
 ### NGC Setup
 This step is needed to pull AutoMagicCalib docker images.
+
 1. Visit NGC sign in page, enter your email address and click Next, or Create an Account
 2. Choose your Organization/Team
 3. Generate an API key following the instructions
@@ -1820,6 +1821,6 @@ This repository contains materials released under different licenses:
 ## Proprietary Container Notices (AutoMagicCalib and AutoMagicCalibUI)
 The scripts in this repository interact with and pull the proprietary AutoMagicCalib and AutoMagicCalibUI containers. The use of these containers, and any software, data, or intellectual property contained within them, is governed by a separate set of licenses and third-party notices.
 
-The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the containers can be found in:
-- [AutoMagicCalib page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=3.2.1)
-- [AutoMagicCalibUI page in NGC Catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib-ui?version=3.2.1)
+The applicable End User License Agreement (EULA), 3rd-party notice, and reference information for the release images can be found in:
+- [`nvcr.io/nvidia/auto-magic-calib:3.2.1`](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib?version=3.2.1)
+- [`nvcr.io/nvidia/auto-magic-calib-ui:3.2.1`](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/auto-magic-calib-ui?version=3.2.1)
