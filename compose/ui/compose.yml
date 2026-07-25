@@ -1,6 +1,6 @@
 services:
   auto-magic-calib-ui:
-    image: nvcr.io/nvidia/auto-magic-calib-ui:2.0.0
+    image: nvcr.io/nvidia/auto-magic-calib-ui:3.2.1
     container_name: auto-magic-calib-ui-1
     
     ports:
@@ -10,4 +10,3 @@ services:
       - API_URL=${AUTO_MAGIC_CALIB_MS_API_URL:-http://${HOST_IP}:${AUTO_MAGIC_CALIB_MS_PORT:-8000}/v1}
 
     restart: unless-stopped
-
